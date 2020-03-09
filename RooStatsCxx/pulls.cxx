@@ -1,7 +1,3 @@
-// Author      : Stefan Gadatsch
-// Email       : gadatsch@nikhef.nl
-// Date        : 2013-04-24
-// Description : Compute pulls and impact on the POI
 
 #include <string>
 #include <vector>
@@ -9,7 +5,6 @@
 #include "TFile.h"
 #include "TH1D.h"
 #include "Math/MinimizerOptions.h"
-#include "TStopwatch.h"
 #include "TPRegexp.h"
 #include "TObjArray.h"
 #include "TObjString.h"
@@ -28,7 +23,6 @@
 
 #include "findSigma.cxx"
 
-using namespace std;
 using namespace RooFit;
 using namespace RooStats;
 
@@ -36,21 +30,16 @@ enum NPType { GammaPoisson, GammaGaussian, GammaProtection, Others, Unknown};
 NPType getNPType(const RooWorkspace *ws, const RooRealVar *par);
 std::pair<double,double> getPrefitErrorForGamma(const RooWorkspace *ws, const RooRealVar* par, NPType type);
 
-// compute pulls of the nuisance parameters and store them in text files. 
-// norm and syst parameters will be split among different files
-// ROOT.runPulls("output/"+ws+"/workspaces/combined/"+mass+".root", poi, "combined",modelConfig, dataName, ws)
 void pulls(
-        const char* inFileName = "LQ3LH_v10.output_LQ3_13TeV_output_Systs_lephad_BasicKinematics_FullRun2_TauPT_300/workspaces/combined/300.root",
-        const char* poiName = "SigXsecOverSM",
-        const char* wsName = "combined",
+        const char* inFileName      = "LQ3LH_v10.output_LQ3_13TeV_output_Systs_lephad_BasicKinematics_FullRun2_TauPT_300/workspaces/combined/300.root",
+        const char* poiName         = "SigXsecOverSM",
+        const char* wsName          = "combined",
         const char* modelConfigName = "ModelConfig",
-        const char* dataName = "obsData",
-        const char* folder = "test",
-
-        const char* variable = NULL
+        const char* dataName        = "obsData",
+        const char* folder          = "test",
+        const char* variable        = NULL
         )
 {
-
     double precision = 0.005;
     int nJobs = 1;
     int iJob = 0;
@@ -179,10 +168,8 @@ void pulls(
         double poi_errdown;
 
         ws->loadSnapshot("tmp_snapshot");
-        //poi_errup   = findSigma(nll, nll_hat, pois[in], pois_hat[in]+fabs(pois[in]->getErrorHi()), pois_hat[in], +1, precision); 
         poi_errup   = findSigma(nll, nll_hat, pois[in], pois_hat[in], +1); 
         ws->loadSnapshot("tmp_snapshot");
-        //poi_errdown = findSigma(nll, nll_hat, pois[in], pois_hat[in]-fabs(pois[in]->getErrorLo()), pois_hat[in], -1, precision);
         poi_errdown = findSigma(nll, nll_hat, pois[in], pois_hat[in], -1);
         std::cout << __FILE__ << " " << __LINE__ << " " << pois[in]->GetName() << " = " << pois_hat[in] << " +" << fabs(poi_errup) << " /  -" << fabs(poi_errdown) << std::endl;
 
@@ -295,14 +282,11 @@ void pulls(
 
         if(np_type!=NPType::GammaProtection){
             ws->loadSnapshot("tmp_snapshot2");
-            //nuip_errup = findSigma(nll, nll_hat, nuip, nuip_high, nuip_hat, +1, precision);
             nuip_errup = findSigma(nll, nll_hat, nuip, nuip_hat, +1);
             ws->loadSnapshot("tmp_snapshot2");
-//            nuip_errdown = findSigma(nll, nll_hat, nuip, nuip_low, nuip_hat, -1, precision);
             nuip_errdown = findSigma(nll, nll_hat, nuip, nuip_hat, -1);
         } else {
             ws->loadSnapshot("tmp_snapshot2");
-//            nuip_errup = findSigma(nll, nll_hat, nuip, nuip_high, nuip_hat, +1, precision);
             nuip_errup = findSigma(nll, nll_hat, nuip, nuip_hat, +1);
             std::cout << "This is a gamma parameter for protection. No need to get -1 sigma." << std::endl;
             nuip_errdown = 0.;
@@ -419,7 +403,6 @@ NPType getNPType(const RooWorkspace *ws, const RooRealVar *par)
     }
     return type;
 }
-
 
 std::pair<double,double> getPrefitErrorForGamma(const RooWorkspace *ws, const RooRealVar* par, NPType type){
 
