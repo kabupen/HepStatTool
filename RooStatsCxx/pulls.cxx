@@ -30,16 +30,32 @@ enum NPType { GammaPoisson, GammaGaussian, GammaProtection, Others, Unknown};
 NPType getNPType(const RooWorkspace *ws, const RooRealVar *par);
 std::pair<double,double> getPrefitErrorForGamma(const RooWorkspace *ws, const RooRealVar* par, NPType type);
 
-void pulls(
-        const char* inFileName      = "LQ3LH_v10.output_LQ3_13TeV_output_Systs_lephad_BasicKinematics_FullRun2_TauPT_300/workspaces/combined/300.root",
-        const char* poiName         = "SigXsecOverSM",
-        const char* wsName          = "combined",
-        const char* modelConfigName = "ModelConfig",
-        const char* dataName        = "obsData",
-        const char* folder          = "test",
-        const char* variable        = NULL
-        )
+void Draw(RooWorkspace* ws, RooAbsReal* nll, TString suffix = "")
 {
+    auto poi = ws->var("SigXsecOverSM");
+    // Plot likelihood scan in parameter frac
+    RooPlot* frame = poi->frame(Bins(10), Range(-10.0,10.0));
+    nll->plotOn(frame,ShiftToZero());
+
+    // Plot the profile likelihood in frac
+//    RooAbsReal* pll_frac = nll->createProfile(*poi);
+//    pll_frac->plotOn(frame, LineColor(kRed));
+
+    TCanvas c("c","c");
+    frame->Draw();
+    c.SaveAs("SigXsecOverSM" + suffix + ".pdf");
+}
+
+
+void pulls()
+{
+    const char* inFileName      = "LQ3LH_v10.output_LQ3_13TeV_output_Systs_lephad_BasicKinematics_FullRun2_TauPT_1200/workspaces/combined/1200.root";
+    const char* poiName         = "SigXsecOverSM";
+    const char* wsName          = "combined";
+    const char* modelConfigName = "ModelConfig";
+    const char* dataName        = "obsData";
+    const char* folder          = "test";
+    const char* variable        = NULL;
     double precision = 0.005;
     int nJobs = 1;
     int iJob = 0;
@@ -53,8 +69,8 @@ void pulls(
     std::cout << "Running over workspace: " << inFileName << std::endl;
     system(("mkdir -vp output/" + string(folder) + "/root-files/pulls").c_str());
 
-    TFile* file = new TFile(inFileName);
-    RooWorkspace* ws = (RooWorkspace*)file->Get(wsName);
+    TFile file(inFileName, "OPEN");
+    RooWorkspace* ws = (RooWorkspace*)file.Get(wsName);
     if (!ws) {
         std::cout << "Workspace: " << wsName << " doesn't exist!" << std::endl;
         exit(1);
@@ -89,19 +105,12 @@ void pulls(
         pois.push_back(poi);
     }
 
+    /* Nuisance params */
     RooArgSet* nuis = (RooArgSet*)mc->GetNuisanceParameters();
     if (!nuis) {
         std::cout << "Nuisance parameter set doesn't exist!" << std::endl;
         exit(1);
     }
-
-    RooArgSet* globs = (RooArgSet*)mc->GetGlobalObservables();
-    if (!globs) {
-        std::cout <<  "GetGlobal observables don't exist!" << std::endl;
-        exit(1);
-    }
-
-    /* collect nuisance parameters */
     std::vector<string> vec_nuis;
     TIterator* itr = nuis->createIterator();
     std::cout << "Nuisance parameters" << std::endl;
@@ -117,20 +126,34 @@ void pulls(
         std::cout << "\t" << varName << std::endl;
         vec_nuis.push_back(string(var->GetName()));
     }
-
     itr->Reset();
+
+    /* Global obs */
+    std::cout << "Global observables" << std::endl;
+    RooArgSet* globs = (RooArgSet*)mc->GetGlobalObservables();
+    if (!globs) {
+        std::cout <<  "GetGlobal observables don't exist!" << std::endl;
+        exit(1);
+    }
+    TIterator* itr_globs = globs->createIterator();
+    while ( RooRealVar* var = static_cast<RooRealVar*>(itr_globs->Next()) ){
+        std::cout << "\t" << var->GetName() << std::endl;
+    }
 
     /* create nll and do unconditional fit */ 
     // For unconditional fit, the POI should be floated
     // Unconditional maximum likelihood estimation (minimum log-likelihood estimation)
     for (unsigned int i = 0; i < pois.size(); i++) {
         pois[i]->setConstant(0);
-        pois[i]->setRange(-5., 5.);
+        pois[i]->setRange(-50., 50.);
         pois[i]->setVal(1.1); // kick !
     }
+    
     RooNLLVar* nll = (RooNLLVar*)mc->GetPdf()->createNLL(*data, Constrain(*nuis), GlobalObservables(*globs), Offset(1), Optimize(2));
     RooMinuit(*nll).migrad(); // Fits::minimize(nll);
     std::cout << "Finished to minimize the NLL." << std::endl;
+    std::cout << nll->getVal() << std::endl;
+    std::cout << pois[0]->getVal() << std::endl;
 
     // it is good that first fit has decent estimate of the errors, so strategy 1 is good
     // for subsequent fits, we don't care, so go faster
@@ -238,7 +261,8 @@ void pulls(
         fout.Write();
         fout.Close();
     }
-    //---------------------------------------------------------END FOR POI RANKING-----------------------------------------------//
+    std::cout << "---------------------------------------------------------END FOR POI RANKING-----------------------------------------------" << std::endl;
+    return;
 
     std::cout << "Nuisance parameter loop : " << vec_nuis.size() << std::endl;
     //for (int in = 0; in < vec_nuis.size(); in++) {
