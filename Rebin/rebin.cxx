@@ -2,13 +2,12 @@
 
 std::vector<std::string> masses = 
 {
-    "1000",
-    "1200"
+    "1200",
 };
 
 std::vector<std::string> backgrounds = 
 {
-    "DY", "DYtt", "VH", "W", "WZ", "WW", "Wtt", "Zbc", "Zl", "Zcc", "Zcl", "Zbl", "Zbb", "ZZ", "Zttcl", "Zttbb", "Zttl", "Zttbc", "Zttcc", "Zttbl", "data", "stopWt", "stops", "stopt", "ttH", "ttbar"
+    "DY", "DYtt", "VH", "W", "Wtt",  "data", "ttH", "ttbar", "Ztthf", "Zhf", "Zlh", "stop", "diboson"
 }; 
 
 std::vector<std::string> systematics = 
@@ -54,7 +53,14 @@ std::vector<std::string> systematics =
     "SysFT_EFF_Eigen_B_1__1down",
     "SysTTbarMBB__1down",
     "SysFT_EFF_Eigen_C_2__1down",
-    "SysFT_EFF_extrapolation_from_charm__1down"
+    "SysFT_EFF_extrapolation_from_charm__1down",
+    "SysZtautauPTTau__1up",
+    "SysZtautauST__1up",
+    "SysZtautauPTH__1up",
+    "SysZtautauMBB__1up",
+    "SysZtautauPTTau__1down",
+    "SysZtautauST__1down",
+    "SysZtautauPTH__1down",
 };
 
 
@@ -68,31 +74,139 @@ void rebin()
             /* Background lists */
             std::map<std::string, TH1D*> bkg_map;
             for ( auto bkg : backgrounds ) {
-                if ( infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", bkg.c_str(), btag) ) == NULL ) {
-                    std::cout << "@@@@ Not found : BasicKinematics_FullRun2/" << bkg << "_" << btag << "2pjet_0ptv_TauPT" << std::endl;
-                    continue;
+                if ( bkg == "Ztthf" ) {
+                    TH1D* h_ztthf = NULL;
+                    for ( auto zbkg : { "Zttcl", "Zttbb", "Zttl", "Zttbc", "Zttcc", "Zttbl"} ){
+                        if ( infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag) ) != NULL ) {
+                            if ( h_ztthf == NULL ) h_ztthf =    (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag));
+                            else                   h_ztthf->Add((TH1D*)infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag)));
+                        }
+                    }
+                    bkg_map[bkg] = h_ztthf;
+                } else if ( bkg == "Zhf" ) {
+                    TH1D* h_zhf = NULL;
+                    for ( auto zbkg : { "Zbc", "Zcc", "Zbb" } ) {
+                        if ( infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag) ) != NULL ) {
+                            if ( h_zhf == NULL ) h_zhf =    (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag));
+                            else                 h_zhf->Add((TH1D*)infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag)));
+                        }
+                    }
+                    bkg_map[bkg] = h_zhf;
+                } else if ( bkg == "Zlf" ) {
+                    TH1D* h_zlf = NULL;
+                    for ( auto zbkg : { "Zl", "Zcl", "Zbl" } ) {
+                        if ( infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag) ) != NULL ) {
+                            if ( h_zlf == NULL ) h_zlf =    (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag));
+                            else                 h_zlf->Add((TH1D*)infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag)));
+                        }
+                    }
+                    bkg_map[bkg] = h_zlf;
+                } else if ( bkg == "stop" ) {
+                    TH1D* htmp = NULL;
+                    for ( auto zbkg : { "stopWt", "stops", "stopt" } ) {
+                        if ( infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag) ) != NULL ) {
+                            if ( htmp == NULL ) htmp =    (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag));
+                            else                htmp->Add((TH1D*)infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag)));
+                        }
+                    }
+                    bkg_map[bkg] = htmp;
+                } else if ( bkg == "diboson" ) {
+                    TH1D* htmp = NULL;
+                    for ( auto zbkg : { "WZ", "WW", "ZZ", } ) {
+                        if ( infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag) ) != NULL ) {
+                            if ( htmp == NULL ) htmp =    (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag));
+                            else                htmp->Add((TH1D*)infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", zbkg, btag)));
+                        }
+                    }
+                    bkg_map[bkg] = htmp;
+                } else {
+                    if ( infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", bkg.c_str(), btag) ) != NULL ) {
+                        bkg_map[bkg] = (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", bkg.c_str(), btag) );
+                    }
                 }
-                bkg_map[bkg] = (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/%s_%s2pjet_0ptv_TauPT", bkg.c_str(), btag) );
             }
 
             /* systematics */
             std::map<std::string, std::vector<TH1D*>> syst_map;
             for ( auto syst : systematics ){
-                for ( auto bkg : backgrounds ) { 
-                    if ( infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", bkg.c_str(), btag, syst.c_str()) ) == NULL ) {
-                        std::cout << "@@@@ Not found : BasicKinematics_FullRun2/" << bkg << "_" << btag << "2pjet_0ptv_TauPT_" << syst << std::endl;
+                // Backgrounds
+                for ( auto bkg : backgrounds ) {
+                    if ( bkg == "Ztthf" ) {
+                        TH1D* htmp = NULL;
+                        for ( auto zbkg : { "Zttcl", "Zttbb", "Zttl", "Zttbc", "Zttcc", "Zttbl"} ){
+                            if ( infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str()) ) != NULL ) {
+                                if ( htmp == NULL ) htmp =    (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str()));
+                                else                htmp->Add((TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str())));
+                            }
+                        }
+                        if ( !htmp ) continue;
+                        htmp->SetName( Form("%s_%s", bkg.c_str(), syst.c_str()) );
+                        syst_map[syst].push_back(htmp);
+                    }
+                    else if ( bkg == "Zhf" ) {
+                        TH1D* htmp = NULL;
+                        for ( auto zbkg : { "Zbc", "Zcc", "Zbb" } ) {
+                            if ( infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str()) ) != NULL ) {
+                                if   ( htmp == NULL ) htmp =    (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str()));
+                                else                  htmp->Add((TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str())));
+                            }
+                        }
+                        if ( !htmp ) continue;
+                        htmp->SetName( Form("%s_%s", bkg.c_str(), syst.c_str()) );
+                        syst_map[syst].push_back(htmp);
+                    }
+                    else if ( bkg == "Zlf" ) {
+                        TH1D* htmp = NULL;
+                        for ( auto zbkg : { "Zl", "Zcl", "Zbl" } ) {
+                            if ( infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str()) ) != NULL ) {
+                                if   ( htmp == NULL ) htmp =    (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str()));
+                                else                  htmp->Add((TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str())));
+                            }
+                        }
+                        if ( !htmp ) continue;
+                        htmp->SetName( Form("%s_%s", bkg.c_str(), syst.c_str()) );
+                        syst_map[syst].push_back(htmp);
+                    }
+                    else if ( bkg == "stop" ) {
+                        TH1D* htmp = NULL;
+                        for ( auto zbkg : { "stopWt", "stops", "stopt" } ) {
+                            if ( infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str()) ) != NULL ) {
+                                if   ( htmp == NULL ) htmp =    (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str()));
+                                else                  htmp->Add((TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str())));
+                            }
+                        }
+                        if ( !htmp ) continue;
+                        htmp->SetName( Form("%s_%s", bkg.c_str(), syst.c_str()) );
+                        syst_map[syst].push_back(htmp);
+                    }
+                    else if ( bkg == "diboson" ) {
+                        TH1D* htmp = NULL;
+                        for ( auto zbkg : { "WZ", "WW", "ZZ",} ) {
+                            if ( infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str()) ) != NULL ) {
+                                if   ( htmp == NULL ) htmp =    (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str()));
+                                else                  htmp->Add((TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", zbkg, btag, syst.c_str())));
+                            }
+                        }
+                        if ( !htmp ) continue;
+                        htmp->SetName( Form("%s_%s", bkg.c_str(), syst.c_str()) );
+                        syst_map[syst].push_back(htmp);
+                    } else {
+                        if ( infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", bkg.c_str(), btag, syst.c_str()) ) != NULL ) {
+                            TH1D* htmp = (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", bkg.c_str(), btag, syst.c_str()) );
+                            htmp->SetName( Form("%s_%s", bkg.c_str(), syst.c_str()) );
+                            syst_map[syst].push_back(htmp);
+                        }
+                    }
+
+
+                    // Signal
+                    if ( infile->Get( Form("BasicKinematics_FullRun2/Systematics/LQ3Up%s_%s2pjet_0ptv_TauPT_%s", mass.c_str(), btag, syst.c_str()) ) == NULL ) {
                         continue;
                     }
-                    TH1D* htmp = (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", bkg.c_str(), btag, syst.c_str()) );
-                    htmp->SetName( Form("%s_%s", bkg.c_str(), syst.c_str()) );
+                    TH1D* htmp = (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/LQ3Up%s_%s2pjet_0ptv_TauPT_%s", mass.c_str(), btag, syst.c_str()));
+                    htmp->SetName( Form("LQ3Up%s_%s", mass.c_str(), syst.c_str()) );
                     syst_map[syst].push_back(htmp);
                 }
-                if ( infile->Get( Form("BasicKinematics_FullRun2/Systematics/LQ3Up%s_%s2pjet_0ptv_TauPT_%s", mass.c_str(), btag, syst.c_str()) ) == NULL ) {
-                    continue;
-                }
-                TH1D* htmp = (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/LQ3Up%s_%s2pjet_0ptv_TauPT_%s", mass.c_str(), btag, syst.c_str()));
-                htmp->SetName( Form("LQ3Up%s_%s", mass.c_str(), syst.c_str()) );
-                syst_map[syst].push_back(htmp);
             }
 
 
@@ -130,7 +244,7 @@ void rebin()
             for ( auto syst : systematics ) {
                 outfile->mkdir(syst.c_str());
                 outfile->cd(syst.c_str());
-                
+
                 // Write the original hists
                 outfile->mkdir(Form("%s/Before",syst.c_str()));
                 outfile->cd(Form("%s/Before",syst.c_str()));
