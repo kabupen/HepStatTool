@@ -1,5 +1,11 @@
 #include "HistoTransform.h"
 
+std::vector<std::string> masses = 
+{
+    "1000",
+    "1200"
+};
+
 std::vector<std::string> backgrounds = 
 {
     "DY", "DYtt", "VH", "W", "WZ", "WW", "Wtt", "Zbc", "Zl", "Zcc", "Zcl", "Zbl", "Zbb", "ZZ", "Zttcl", "Zttbb", "Zttl", "Zttbc", "Zttcc", "Zttbl", "data", "stopWt", "stops", "stopt", "ttH", "ttbar"
@@ -57,7 +63,7 @@ void rebin()
     TFile* infile = TFile::Open("/Users/takeda/cernbox/merged.squirtle.21Feb2020.mc16e_Syst.root", "OPEN");
 
     for ( auto btag : {"1tag", "2tag"} ) {
-        for ( auto mass : {"300", "1000","1200"} ) {
+        for ( auto mass : masses ) {
 
             /* Background lists */
             std::map<std::string, TH1D*> bkg_map;
@@ -77,13 +83,21 @@ void rebin()
                         std::cout << "@@@@ Not found : BasicKinematics_FullRun2/" << bkg << "_" << btag << "2pjet_0ptv_TauPT_" << syst << std::endl;
                         continue;
                     }
-                    syst_map[syst].push_back((TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", bkg.c_str(), btag, syst.c_str()) ));
+                    TH1D* htmp = (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/%s_%s2pjet_0ptv_TauPT_%s", bkg.c_str(), btag, syst.c_str()) );
+                    htmp->SetName( Form("%s_%s", bkg.c_str(), syst.c_str()) );
+                    syst_map[syst].push_back(htmp);
                 }
+                if ( infile->Get( Form("BasicKinematics_FullRun2/Systematics/LQ3Up%s_%s2pjet_0ptv_TauPT_%s", mass.c_str(), btag, syst.c_str()) ) == NULL ) {
+                    continue;
+                }
+                TH1D* htmp = (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/Systematics/LQ3Up%s_%s2pjet_0ptv_TauPT_%s", mass.c_str(), btag, syst.c_str()));
+                htmp->SetName( Form("LQ3Up%s_%s", mass.c_str(), syst.c_str()) );
+                syst_map[syst].push_back(htmp);
             }
 
 
             /* Signal */
-            TH1D* hSig = (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/LQ3Up%s_%s2pjet_0ptv_TauPT", mass, btag) );
+            TH1D* hSig = (TH1D*)infile->Get( Form("BasicKinematics_FullRun2/LQ3Up%s_%s2pjet_0ptv_TauPT", mass.c_str(), btag) );
             TH1D* hBkg = nullptr;
             for ( auto itr = bkg_map.begin(); itr != bkg_map.end(); itr++ ){
                 if ( itr == bkg_map.begin() ) hBkg = itr->second;
@@ -99,12 +113,12 @@ void rebin()
             std::vector<int> bins = histoTrafo.getRebinBins(hBkg, hSig, method, maxUnc);
 
             // Output as a root file
-            TFile* outfile = new TFile( Form("rebin_%s_%sGeV.root", btag, mass), "RECREATE");
+            TFile* outfile = new TFile( Form("rebin_%s_%sGeV.root", btag, mass.c_str()), "RECREATE");
             outfile->mkdir("Before");
             outfile->cd("Before");
 
             // Write the original hists
-            hSig->SetName(Form("LQ3Up%s", mass));
+            hSig->SetName(Form("LQ3Up%s", mass.c_str()));
             hSig->Write();
             // bkg
             for ( auto itr = bkg_map.begin(); itr != bkg_map.end(); itr++ ){
