@@ -172,46 +172,6 @@ void breakdown(
             ws->loadSnapshot("tmp_shot"); pois_up  .push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], +1));
             ws->loadSnapshot("tmp_shot"); pois_down.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], -1));
         }
-    } else if (config->catecory2eval == "srstat") {
-        // setting everything constant, so that just data statistics is left
-        ws->loadSnapshot("tmp_shot");
-        nitr->Reset();
-        while ((var = (RooRealVar*)nitr->Next())) {
-            var->setConstant(1);
-        }
-        ws->saveSnapshot("tmp_shot_srstat",nuisAndPOI);
-
-        for (unsigned int i = 0; i < pois.size(); i++) {
-            ws->loadSnapshot("tmp_shot_srstat"); pois_up  .push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], +1));
-            ws->loadSnapshot("tmp_shot_srstat"); pois_down.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], -1));
-        }
-    } else if (config->catecory2eval == "mcstat") {
-        for (unsigned int i = 0; i < pois.size(); i++) {
-            ws->loadSnapshot("tmp_shot");
-            list<string> stat_list = addParams(config, "statistical");
-            setParams(nuis, stat_list, config->technique, fitresult, pois[i], config->corrCutoff);
-            nitr->Reset();
-            while ((var = (RooRealVar*)nitr->Next())) {
-                if (string(var->GetName()).find("gamma_stat") != string::npos) {
-                    var->setConstant(0);
-                }
-            }
-            ws->saveSnapshot("tmp_shot_mcstat",nuisAndPOI);
-
-            ws->loadSnapshot("tmp_shot_mcstat"); pois_up  .push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], +1));
-            ws->loadSnapshot("tmp_shot_mcstat"); pois_down.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], -1));
-        }
-    } else {
-        list<string> nuis_list = addParams(config, config->catecory2eval);
-
-        for (unsigned int i = 0; i < pois.size(); i++) {
-            ws->loadSnapshot("tmp_shot");
-            setParams(nuis, nuis_list, config->technique, fitresult, pois[i], config->corrCutoff);
-            pois_up.push_back  (findSigma(nll, nll_val_true, pois[i], pois_hat[i], +1));
-            ws->loadSnapshot("tmp_shot");
-            setParams(nuis, nuis_list, config->technique, fitresult, pois[i], config->corrCutoff);
-            pois_down.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], -1));
-        }
     }
 
     for (unsigned int i = 0; i < pois.size(); i++) {
