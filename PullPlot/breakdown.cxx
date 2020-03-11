@@ -20,9 +20,7 @@
 #include "RooNLLVar.h"
 #include "RooFitResult.h"
 
-#include "parseString.C"
-#include "minimize.cxx"
-#include "findSigma.C"
+#include "findSigma.cxx"
 
 using namespace std;
 using namespace RooFit;
@@ -46,12 +44,12 @@ struct settings {
 
 void setParams(RooArgSet* nuis, list<string> tmp_list, string technique, RooFitResult* fitresult, RooRealVar* poi, double corrCutoff);
 list<string> addParams(settings* config, string catecory2eval);
-void writeTmpXML (string systName, settings* config);
+void writeTmpXML (string systName, std::string xmlName);
 
 // ____________________________________________________________________________|__________
 // Compute ranking of systematics specified in xml
 void breakdown(
-        std::string inFileName = "output/LQ3LH_v10.output_LQ3_13TeV_output_Systs_lephad_BasicKinematics_FullRun2_TauPT_300/workspaces/combined/300.root",
+        std::string inFileName      = "1200GeV_WSMaker_workspace.root",
         std::string wsName          = "combined",
         std::string modelConfigName = "ModelConfig",
         std::string dataName        = "obsData",
@@ -59,8 +57,8 @@ void breakdown(
         std::string xmlName         = "config/breakdown.xml",
         std::string technique       = "add",
         std::string catecory2eval   = "total",
-        double precision       = 0.005,
-        double corrCutoff      = 0.0,
+        double precision            = 0.005,
+        double corrCutoff           = 0.0,
         std::string folder          = "12.TT.10_otT_0",
         std::string loglevel        = "DEBUG")
 {
@@ -82,12 +80,8 @@ void breakdown(
     // some settings
     ROOT::Math::MinimizerOptions::SetDefaultMinimizer("Minuit2");
     ROOT::Math::MinimizerOptions::SetDefaultStrategy(1);
-    if (config->loglevel == "DEBUG") {
-        ROOT::Math::MinimizerOptions::SetDefaultPrintLevel(1);
-    } else {
-        ROOT::Math::MinimizerOptions::SetDefaultPrintLevel(-1);
-        RooMsgService::instance().setGlobalKillBelow(RooFit::FATAL);
-    }
+    ROOT::Math::MinimizerOptions::SetDefaultPrintLevel(-1);
+    RooMsgService::instance().setGlobalKillBelow(RooFit::FATAL);
 
     // loading the workspace etc.
     std::cout << "Running over workspace: " << config->inFileName << std::endl;
@@ -157,14 +151,15 @@ void breakdown(
     RooNLLVar* nll = (RooNLLVar*)mc->GetPdf()->createNLL(*data, Constrain(*nuis), GlobalObservables(*globs), Offset(1), NumCPU(numCPU, RooFit::Hybrid), Optimize(2));
 
     RooFitResult* fitresult=nullptr;
-    Fits::minimize(nll);
+//    Fits::minimize(nll);
+    RooMinuit(*nll).migrad(); 
     ROOT::Math::MinimizerOptions::SetDefaultStrategy(1);
 
     RooArgSet nuisAndPOI(*mc->GetNuisanceParameters(), *mc->GetParametersOfInterest());
     ws->saveSnapshot("tmp_shot", nuisAndPOI);
 
     double nll_val_true = nll->getVal();
-    vector<double> pois_hat;
+    std::vector<double> pois_hat;
     for (unsigned int i = 0; i < pois.size(); i++) {
         pois_hat.push_back(pois[i]->getVal());
     }
@@ -174,10 +169,8 @@ void breakdown(
 
     if (config->catecory2eval == "total") {
         for (unsigned int i = 0; i < pois.size(); i++) {
-            ws->loadSnapshot("tmp_shot");
-            pois_up.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i]+pois[i]->getErrorHi(), pois_hat[i], +1, config->precision));
-            ws->loadSnapshot("tmp_shot");
-            pois_down.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i]-fabs(pois[i]->getErrorLo()), pois_hat[i], -1, config->precision));
+            ws->loadSnapshot("tmp_shot"); pois_up  .push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], +1));
+            ws->loadSnapshot("tmp_shot"); pois_down.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], -1));
         }
     } else if (config->catecory2eval == "srstat") {
         // setting everything constant, so that just data statistics is left
@@ -189,10 +182,8 @@ void breakdown(
         ws->saveSnapshot("tmp_shot_srstat",nuisAndPOI);
 
         for (unsigned int i = 0; i < pois.size(); i++) {
-            ws->loadSnapshot("tmp_shot_srstat");
-            pois_up.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i]+pois[i]->getErrorHi(), pois_hat[i], +1, config->precision));
-            ws->loadSnapshot("tmp_shot_srstat");
-            pois_down.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i]-fabs(pois[i]->getErrorLo()), pois_hat[i], -1, config->precision));
+            ws->loadSnapshot("tmp_shot_srstat"); pois_up  .push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], +1));
+            ws->loadSnapshot("tmp_shot_srstat"); pois_down.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], -1));
         }
     } else if (config->catecory2eval == "mcstat") {
         for (unsigned int i = 0; i < pois.size(); i++) {
@@ -207,10 +198,8 @@ void breakdown(
             }
             ws->saveSnapshot("tmp_shot_mcstat",nuisAndPOI);
 
-            ws->loadSnapshot("tmp_shot_mcstat");
-            pois_up.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i]+pois[i]->getErrorHi(), pois_hat[i], +1, config->precision));
-            ws->loadSnapshot("tmp_shot_mcstat");
-            pois_down.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i]-fabs(pois[i]->getErrorLo()), pois_hat[i], -1, config->precision));
+            ws->loadSnapshot("tmp_shot_mcstat"); pois_up  .push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], +1));
+            ws->loadSnapshot("tmp_shot_mcstat"); pois_down.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], -1));
         }
     } else {
         list<string> nuis_list = addParams(config, config->catecory2eval);
@@ -218,10 +207,10 @@ void breakdown(
         for (unsigned int i = 0; i < pois.size(); i++) {
             ws->loadSnapshot("tmp_shot");
             setParams(nuis, nuis_list, config->technique, fitresult, pois[i], config->corrCutoff);
-            pois_up.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i]+pois[i]->getErrorHi(), pois_hat[i], +1, config->precision));
+            pois_up.push_back  (findSigma(nll, nll_val_true, pois[i], pois_hat[i], +1));
             ws->loadSnapshot("tmp_shot");
             setParams(nuis, nuis_list, config->technique, fitresult, pois[i], config->corrCutoff);
-            pois_down.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i]-fabs(pois[i]->getErrorLo()), pois_hat[i], -1, config->precision));
+            pois_down.push_back(findSigma(nll, nll_val_true, pois[i], pois_hat[i], -1));
         }
     }
 
@@ -229,13 +218,13 @@ void breakdown(
         std::cout << config->catecory2eval << " gives " << pois[i]->GetName() << " = " << pois_hat[i] << " +" << pois_up[i] << " / -" << pois_down[i] << std::endl;
     }
 
-    system(("mkdir -vp output/" +  string(config->folder) + "/root-files/breakdown_" + string(technique)).c_str());
-    stringstream fileName;
+    std::system(("mkdir -vp output/" +  string(config->folder) + "/root-files/breakdown_" + string(technique)).c_str());
+    std::stringstream fileName;
     fileName << "output/" << config->folder << "/root-files/breakdown_" << technique << "/" << config->catecory2eval << ".root";
     TFile fout(fileName.str().c_str(), "recreate");
 
-    TH1D* h_out = new TH1D(config->catecory2eval.c_str(), config->catecory2eval.c_str(), 3 * pois.size(), 0, 3 * pois.size());
 
+    TH1D* h_out = new TH1D(config->catecory2eval.c_str(), config->catecory2eval.c_str(), 3 * pois.size(), 0, 3 * pois.size());
     int bin = 1;
     for (unsigned int i = 0; i < pois.size(); i++) {
         h_out->SetBinContent(bin, pois_hat[i]);
@@ -316,7 +305,7 @@ list<string> addParams(settings* config, string catecory2eval) {
             std::cout << "skipping " << categoryName << std::endl;
             category = xml->GetNext(category);
         } else {
-            bool breakdown = (string(xml->GetAttr(category, "breakdown")).find("yes") != string::npos) ? 1 : 0;
+            bool isBreakdown = (string(xml->GetAttr(category, "breakdown")).find("yes") != string::npos) ? 1 : 0;
 
             XMLNodePointer_t systematic = xml->GetChild(category);
 
@@ -332,10 +321,10 @@ list<string> addParams(settings* config, string catecory2eval) {
 
                     tmp_list.push_back(systName);
 
-                    if (breakdown) {
+                    if (isBreakdown) {
                         std::cout << "Doing breakdown: " << systName << std::endl;
-                        writeTmpXML(systName, config);
-                        runBreakdown(config->inFileName, config->wsName, config->modelConfigName, config->dataName, config->poiName, "config/tmp_"+systName+".xml", config->technique, systName, config->precision, config->corrCutoff, config->folder, config->loglevel);
+                        writeTmpXML(systName, config->xmlName);
+                        breakdown(config->inFileName, config->wsName, config->modelConfigName, config->dataName, config->poiName, "config/tmp_"+systName+".xml", config->technique, systName, config->precision, config->corrCutoff, config->folder, config->loglevel);
                     }
                     attr_syst = xml->GetNextAttr(attr_syst);  
                 }
@@ -349,7 +338,7 @@ list<string> addParams(settings* config, string catecory2eval) {
 
 // ___________________________________________________________________________|__________
 // Write temporary XML for a single parameter
-void writeTmpXML (string systName, settings* config) {
+void writeTmpXML (string systName, std::string xmlName ) {
     // add the interesting category
     TXMLEngine* xml = new TXMLEngine;
 
@@ -371,7 +360,7 @@ void writeTmpXML (string systName, settings* config) {
     XMLAttrPointer_t scan_child_stat = xml->NewAttr(child_stat, 0, "scan", "no");
 
     TXMLEngine* xml_top = new TXMLEngine;
-    XMLDocPointer_t xmldoc_top = xml_top->ParseFile(config->xmlName.c_str());
+    XMLDocPointer_t xmldoc_top = xml_top->ParseFile(xmlName.c_str());
 
     XMLNodePointer_t mainnode_top = xml_top->DocGetRootElement(xmldoc_top);
     XMLNodePointer_t category_top = xml_top->GetChild(mainnode_top);
