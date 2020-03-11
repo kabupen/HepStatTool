@@ -73,7 +73,7 @@ bool rankNuis              = true; // sort the nuisance parameters by impact on 
 bool m_postFitOrder          = true;
 bool rankPOI_top           = false;
 
-void drawPlot_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pad2, int POIpos, int POItotal, float scale_factor, string POIname = "SigXsecOverSM");
+void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pad2, int POIpos, int POItotal, float scale_factor, string POIname = "SigXsecOverSM");
 void ROOT2Ascii(string folder);
 //void loadFile(const char* fileName, int cols, fileHolder file);
 vector<string> getLabel(const char* fileName, int nrPars);
@@ -81,7 +81,7 @@ TString translateNPname(TString internalName, bool isMVA);
 TString translateGammaStatName(TString internalName);
 bool isSignalNP(string NPname);
 
-void drawPlot_pulls3(string mass = "125", string cardName = "", float scale_factor = 1.7,  string overlayCard="", bool postFitOrder = true, string POIname = "SigXsecOverSM", int POIpos = 0, int POItotal = 1) {
+void draw_pulls3(string mass = "125", string cardName = "", float scale_factor = 1.7,  string overlayCard="", bool postFitOrder = true, string POIname = "SigXsecOverSM", int POIpos = 0, int POItotal = 1) {
     gStyle->SetHatchesLineWidth(hatch_width);
 
     m_postFitOrder = postFitOrder;
@@ -126,7 +126,7 @@ void drawPlot_pulls3(string mass = "125", string cardName = "", float scale_fact
     minMass = 0;
     maxMass = 500;
 
-    drawPlot_pulls2(cardName, mass, c1, pad1, pad2, POIpos, POItotal, scale_factor, POIname);
+    draw_pulls2(cardName, mass, c1, pad1, pad2, POIpos, POItotal, scale_factor, POIname);
 
     pad1->cd();
 
@@ -188,8 +188,8 @@ void drawPlot_pulls3(string mass = "125", string cardName = "", float scale_fact
     delete c1;
 }
 
-// before we are using drawPlot_pulls3, now we want to do the multiple mus, so we add a shell outside drawPlot_pulls3
-void drawPlot_pulls(string mass = "125", string cardName = "", float scale_factor = 1.7, bool remakeAscii = 0, string overlayCard="", bool postFitOrder = true) {
+// before we are using draw_pulls3, now we want to do the multiple mus, so we add a shell outside draw_pulls3
+void draw_pulls(string mass = "125", string cardName = "", float scale_factor = 1.7, bool remakeAscii = 0, string overlayCard="", bool postFitOrder = true) {
     vector<string> parsed = parseString(cardName, ":");
     cardName = parsed[0];
     // TODO: check if following two lines are needed?
@@ -220,7 +220,7 @@ void drawPlot_pulls(string mass = "125", string cardName = "", float scale_facto
         cout << "Do the ranking plot for POI: "<< POIname << " as " << POIpos+1 << " (starting from 1) of " << nBins/3 <<endl;
 
         // for each POI do the plot
-        drawPlot_pulls3( mass, cardName, scale_factor, overlayCard, postFitOrder, POIname, POIpos, POItotal);
+        draw_pulls3( mass, cardName, scale_factor, overlayCard, postFitOrder, POIname, POIpos, POItotal);
     }
 
     f->Close();
@@ -229,7 +229,7 @@ void drawPlot_pulls(string mass = "125", string cardName = "", float scale_facto
 
 // ____________________________________________________________________________|__________
 // The actual plotting goes on here
-void drawPlot_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pad2, int POIpos = 0, int POItotal = 1, float scale_factor = 1.7, string POIname) 
+void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pad2, int POIpos = 0, int POItotal = 1, float scale_factor = 1.7, string POIname) 
 {
     gStyle->SetHatchesLineWidth(hatch_width);
     std::cout << "INFO::Drawing pulls: " << cardName << " for mH = " << mass << " GeV" << std::endl;
