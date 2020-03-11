@@ -36,7 +36,6 @@ TString lumi3 = "43.8";
 TString lumi4 = "79.8";
 TString lumi5 = "139.0";
 bool doHorizontal          = false; // produce a horizontal plot
-bool drawInset             = false; // will cover legend but show the normalisation factors which are a priori unconstrained
 bool drawErrorBars         = false; // draw bars visualising the total, stat and syst uncertainty
 bool drawHatchedBands      = false; // draw hatched bands around delta muhat = 0 to visualise the total, stat and syst uncertainty
 bool drawParamNames        = true;  // show the nuisance parameter labels
@@ -65,11 +64,9 @@ Color_t color_pulls        = kGray+2;
 Color_t color_normalization = kRed-4;
 Color_t color_prefit       = kYellow-7;
 Color_t color_postfit      = kBlue-4;
-bool rankNuis              = true; // sort the nuisance parameters by impact on POI
 bool m_postFitOrder          = true;
 bool rankPOI_top           = false;
 
-void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pad2, int POIpos, int POItotal, float scale_factor, string POIname = "SigXsecOverSM");
 void ROOT2Ascii(string folder);
 //void loadFile(const char* fileName, int cols, fileHolder file);
 vector<string> getLabel(const char* fileName, int nrPars);
@@ -92,241 +89,128 @@ void draw_pulls3(string mass = "125", string cardName = "", float scale_factor =
 
     applyOverlay(overlayCard , overlay , "");
 
-    showLabel = 1;
-
     TCanvas* c1 = new TCanvas("c1","c1",1024,1448);
-
-    TPad *pad1 = new TPad("pad1", "pad1", 0.0  , 0.0  , 1.0 , 1.0  , 0);
-    TPad *pad2 = new TPad("pad2", "pad2", 0.63, 0.1, 0.94, 0.22, 0);
+    TPad *pad1  = new TPad("pad1", "pad1",  0.0, 0.0,  1.0,  1.0, 0);
 
     /* pad1 */
     if (drawParamNames) pad1->SetLeftMargin(0.30);//Graph size
     else                pad1->SetLeftMargin(0.05);
+    if (drawErrorBars)  pad1->SetTopMargin(0.10);
+    else                pad1->SetTopMargin(0.09);
     pad1->SetRightMargin(0.05);
     pad1->SetBottomMargin(0.09);
-    if (drawErrorBars) pad1->SetTopMargin(0.10);
-    else               pad1->SetTopMargin(0.09);
-
-    /* pad2 */
-    pad2->SetLeftMargin(0.325);
-    pad2->SetRightMargin(0.01);
-
     pad1->Draw();
-    if (drawInset) pad2->Draw();
 
-    ydiff_leg   = 0.15;
     labelPosX   = 0.06;
     channelPosX = 0.33;
     channelPosY = 0.19;
     markerSize  = 0.8;
-    minMass     = 0;
-    maxMass     = 500;
 
-    draw_pulls2(cardName, mass, c1, pad1, pad2, POIpos, POItotal, scale_factor, POIname);
-
-    pad1->cd();
-
-    labelPosY = channelPosY-0.02;
-    //ATLASLabel(labelPosX,labelPosY,"\nInternal",1);
-
-    TLatex p;
-    p.SetNDC();
-    p.SetTextFont(42);
-    p.DrawLatex(labelPosX,labelPosY-0.04,labelTxt.c_str());
-
-    TLatex t3;
-    t3.SetTextSize(0.025);
-    t3.SetNDC();
-    TString lumi = lumi5;
-    if      ( parsed[0].find("mc16a_")  != std::string::npos) lumi = lumi2;
-    else if ( parsed[0].find("mc16d_")  != std::string::npos) lumi = lumi3;
-    else if ( parsed[0].find("mc16ad_") != std::string::npos) lumi = lumi4;
-    else if ( parsed[0].find("mc16ade_")!= std::string::npos) lumi = lumi5;
-
-    TString stex = "#sqrt{s} = " + energy2 + " TeV";//, #int Ldt = " + lumi2 + " fb^{-1}";
-    TString lumitex2 = lumi + " fb^{-1}"; // Updated luminosity style
-    t3.DrawLatex(channelPosX-0.020, channelPosY, stex.Data());
-    t3.DrawLatex(channelPosX-0.020, channelPosY-0.04, lumitex2.Data());
-
-    TLatex t2;
-    t2.SetTextSize(0.025);
-    t2.SetNDC();
-
-    char const* tmp = getenv("ANALYSISTYPE");
-    if ( tmp == NULL ) {
-        std::cout << "Couldn't getenv ANALYSISTYPE" << std::endl;
-    } else {
-        std::string s( tmp );
-    }
-
-    t2.DrawLatex(channelPosX-0.020, channelPosY-0.075, ("m_{A}="+mass+" GeV").c_str());
-
-    std::stringstream saveName;
-    saveName << "output/" << cardName << "/pulls_" << POIname <<"_";
-    std::cout << saveName.str() << std::endl;
-    if (!m_postFitOrder) saveName << "prefit_";
-    saveName << mass;
-    c1->Draw();
-    c1->SaveAs( Form("pulls_%s.pdf", POIname.c_str()) );
-    c1->Closed();
-    delete c1;
-}
-
-// before we are using draw_pulls3, now we want to do the multiple mus, so we add a shell outside draw_pulls3
-void draw_pulls(std::string mass = "125", std::string cardName = "test", float scale_factor = 1.7, std::string overlayCard="", bool postFitOrder = true) 
-{
-    std::vector<std::string> parsed = parseString(cardName, ":");
-    cardName = parsed[0];
-
-    // TODO: check if following two lines are needed?
-    computeFlags(cardName);
-    applyOverlay(overlayCard , overlay , "");
-
-    // Create ascii tables
-    std::cout << "ROOT2Ascii"<< std::endl;
-    ROOT2Ascii("output/test/root-files/pulls");
-    ROOT2Ascii("output/test/root-files/breakdown_add");
-
-    // find out how many POIs
-    TFile* infile = NULL;
-    infile = new TFile( "output/test/root-files/breakdown_add/total.root");
-    TH1D* hist = (TH1D*)infile->Get("total");
-    int nBins = hist->GetNbinsX();
-    if ( nBins%3 != 0) {
-        cout << "Wired number of bins, it should contain central/up/down for each POI " <<endl;
-        exit(1);
-    }
-    
-    std::cout << "Start the poi loop"<< std::endl;
-    int POItotal = nBins/3;
-    for ( int POIpos = 0; POIpos < POItotal; POIpos++) {
-        std::string POIname = hist->GetXaxis()->GetBinLabel(POIpos*3+1);
-        std::cout << "Do the ranking plot for POI: "<< POIname << " as " << POIpos+1 << " (starting from 1) of " << nBins/3 << std::endl;
-
-        // for each POI do the plot
-        draw_pulls3( mass, cardName, scale_factor, overlayCard, postFitOrder, POIname, POIpos, POItotal);
-    }
-
-    infile->Close();
-}
-
-// ____________________________________________________________________________|__________
-// The actual plotting goes on here
-void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pad2, int POIpos = 0, int POItotal = 1, float scale_factor = 1.7, string POIname) 
-{
+    // Start (Old draw pulls2)
     std::cout << "INFO::Drawing pulls: " << cardName << " for mH = " << mass << " GeV" << std::endl;
 
     gStyle->SetHatchesLineWidth(hatch_width);
 
     // load and initialize ascii files
-    std::string pullfile = "output/" + cardName + "/ascii/pulls.txt";
-    std::ifstream testFile(pullfile);
-    if (testFile.fail()) {
-        std::cout << "ERROR::file " << ("output/"+cardName+"/ascii/pulls.txt").c_str() << "does not exist." << std::endl;
-        exit(1);
-    }
+    std::string file_pulls             = "output/" + cardName + "/ascii/pulls.txt";
+    std::string file_pulls_nf          = "output/" + cardName + "/ascii/pulls_nf.txt";
+    std::string file_breakdown_add     = "output/" + cardName + "/ascii/breakdown_add.txt";
+    std::string file_pulls_id          = "output/" + cardName + "/ascii/pulls_id.txt";
+    std::string file_pulls_nf_id       = "output/" + cardName + "/ascii/pulls_nf_id.txt";
+    std::string file_breakdown_add_id  = "output/" + cardName + "/ascii/breakdown_add_id.txt";
+
+    std::ifstream testFile ( file_pulls );
+    std::ifstream testFile2( file_pulls_nf );
+    std::ifstream testFile3( file_breakdown_add );
+    if ( testFile.fail()  ) { std::cout << "ERROR::file " << file_pulls          << "does not exist." << std::endl; exit(1); }
+    if ( testFile2.fail() ) { std::cout << "ERROR::file " << file_pulls_nf       << "does not exist." << std::endl; exit(1); }
+    if ( testFile3.fail() ) { std::cout << "ERROR::file " << file_breakdown_add << "does not exist." << std::endl; exit(1); }
+    
     fileHolder pulls;
-    drawPlot( pullfile, 3+POItotal*5, pulls);
-
-    // load and initialize the normalisation factor ascii file
-    ifstream testFile2(("output/"+cardName+"/ascii/pulls_nf.txt").c_str());
-    if (testFile2.fail()) {
-        cout << "ERROR::file " << ("output/"+cardName+"/ascii/pulls_nf.txt").c_str() << "does not exist.";
-        exit(1);
-    }
     fileHolder nfs;
-    drawPlot("output/"+cardName+"/ascii/pulls_nf.txt", 3+POItotal*5, nfs);
-
-    // load and initialize the category uncertainties
-    ifstream testFile3(("output/"+cardName+"/ascii/breakdown_add.txt").c_str());
-    if (testFile3.fail()) {
-        cout << "ERROR::file " << ("output/"+cardName+"/ascii/breakdown_add.txt").c_str() << "does not exist.";
-        exit(1);
-    }
     fileHolder cats;
-    drawPlot("output/"+cardName+"/ascii/breakdown_add.txt", POItotal*3, cats);
-    cout<<"CHECK OUT "<<"output/"+cardName+"/ascii/breakdown_add.txt"<<endl;
+    drawPlot( file_pulls         , 3+POItotal*5, pulls);
+    drawPlot( file_pulls_nf      , 3+POItotal*5, nfs);
+    drawPlot( file_breakdown_add, POItotal*3  , cats);
 
     // get the values from the ascii files
     int nrNuis = pulls.massPoints.size();
-    int nrNFs = nfs.massPoints.size();
-    int nrCats = cats.massPoints.size();
+    int nrNFs  = nfs  .massPoints.size();
+    int nrCats = cats .massPoints.size();
 
     std::vector<double> points_nuis = pulls.massPoints;
-    std::vector<double> points_nf = nfs.massPoints;
-    std::vector<double> points_cats = cats.massPoints;
+    std::vector<double> points_nf   = nfs  .massPoints;
+    std::vector<double> points_cats = cats .massPoints;
 
-    float scale_theta = scale_factor;
-    float scale_poi = scale_factor;
+    for (int i = 0; i < nrNuis; i++) points_nuis[i] = i + 0.5;
+    for (int i = 0; i < nrNFs;  i++) points_nf[i]   = i + 0.5;
 
-    for (int i = 0; i < nrNuis; i++) points_nuis[i]   = i + 0.5;
-    for (int i = 0; i < nrNFs; i++) points_nf[i] = i + 0.5;
-
-    std::vector<double> val          = pulls.getCol(0);
-    std::vector<double> up           = pulls.getCol(1);
-    std::vector<double> down         = pulls.getCol(2);
-    std::vector<double> poi_hat      = pulls.getCol(3+5*POIpos);
-    std::vector<double> poi_up       = pulls.getCol(4+5*POIpos);
-    std::vector<double> poi_down     = pulls.getCol(5+5*POIpos);
-    std::vector<double> poi_nom_up   = pulls.getCol(6+5*POIpos);
-    std::vector<double> poi_nom_down = pulls.getCol(7+5*POIpos);
+    std::vector<double> val               = pulls.getCol(0);
+    std::vector<double> up                = pulls.getCol(1);
+    std::vector<double> down              = pulls.getCol(2);
+    std::vector<double> poi_hat           = pulls.getCol(3+5*POIpos);
+    std::vector<double> poi_up            = pulls.getCol(4+5*POIpos);
+    std::vector<double> poi_down          = pulls.getCol(5+5*POIpos);
+    std::vector<double> poi_nom_up        = pulls.getCol(6+5*POIpos);
+    std::vector<double> poi_nom_down      = pulls.getCol(7+5*POIpos);
     //
-    std::vector<double> poi_up_sign   = pulls.getCol(4+5*POIpos);
-    std::vector<double> poi_down_sign = pulls.getCol(5+5*POIpos);
+    std::vector<double> poi_up_sign       = pulls.getCol(4+5*POIpos);
+    std::vector<double> poi_down_sign     = pulls.getCol(5+5*POIpos);
     std::vector<double> poi_nom_up_sign   = pulls.getCol(6+5*POIpos);
     std::vector<double> poi_nom_down_sign = pulls.getCol(7+5*POIpos);
 
-    std::vector<double> nf_val          = nfs.getCol(0);
-    std::vector<double> nf_up           = nfs.getCol(1);
-    std::vector<double> nf_down         = nfs.getCol(2);
-    std::vector<double> nf_poi_hat      = nfs.getCol(3+5*POIpos);
-    std::vector<double> nf_poi_up       = nfs.getCol(4+5*POIpos);
-    std::vector<double> nf_poi_down     = nfs.getCol(5+5*POIpos);
-    std::vector<double> nf_poi_nom_up   = nfs.getCol(6+5*POIpos);
-    std::vector<double> nf_poi_nom_down = nfs.getCol(7+5*POIpos);
+    std::vector<double> nf_val            = nfs.getCol(0);
+    std::vector<double> nf_up             = nfs.getCol(1);
+    std::vector<double> nf_down           = nfs.getCol(2);
+    std::vector<double> nf_poi_hat        = nfs.getCol(3+5*POIpos);
+    std::vector<double> nf_poi_up         = nfs.getCol(4+5*POIpos);
+    std::vector<double> nf_poi_down       = nfs.getCol(5+5*POIpos);
+    std::vector<double> nf_poi_nom_up     = nfs.getCol(6+5*POIpos);
+    std::vector<double> nf_poi_nom_down   = nfs.getCol(7+5*POIpos);
 
     std::vector<double> cats_val  = cats.getCol(0+3*POIpos);
     std::vector<double> cats_up   = cats.getCol(1+3*POIpos);
     std::vector<double> cats_down = cats.getCol(2+3*POIpos);
 
     // set correct values for the poi
+    float scale_theta = scale_factor;
+    float scale_poi   = scale_factor;
+
     for (int i = 0; i < nrNuis; i++) {
         val[i] *= scale_theta;
 
-        poi_up[i]   = poi_up[i] - poi_hat[i];
+        poi_up[i]   = poi_up[i]   - poi_hat[i];
         poi_down[i] = poi_down[i] - poi_hat[i];
 
-        poi_nom_up[i]   = poi_nom_up[i] - poi_hat[i];
+        poi_nom_up[i]   = poi_nom_up[i]   - poi_hat[i];
         poi_nom_down[i] = poi_nom_down[i] - poi_hat[i];
         //
-        if (poi_up[i] < 0){
-            poi_up_sign[i]   = 0.;
-            poi_down_sign[i] = fabs(poi_up[i]);
+        if (poi_up[i] < 0) {
+            poi_up_sign[i]       = 0.;
+            poi_down_sign[i]     = fabs(poi_up[i]);
             poi_nom_up_sign[i]   = 0.;
             poi_nom_down_sign[i] = fabs(poi_nom_up[i]);
-        }else{
-            poi_up_sign[i]   = fabs(poi_up[i]);
-            poi_down_sign[i] = 0.;
+        } else {
+            poi_up_sign[i]       = fabs(poi_up[i]);
+            poi_down_sign[i]     = 0.;
             poi_nom_up_sign[i]   = fabs(poi_nom_up[i]);
             poi_nom_down_sign[i] = 0.;
         }
-        //
-        if (poi_up[i] < 0) swap(poi_up[i], poi_down[i]);
-        if (poi_nom_up[i] < 0) swap(poi_nom_up[i], poi_nom_down[i]);
-        //
-        poi_up[i]   = fabs(poi_up[i]);
-        poi_down[i] = fabs(poi_down[i]);
-
+        
+        if ( poi_up[i]     < 0 ) std::swap(poi_up[i]    , poi_down[i]);
+        if ( poi_nom_up[i] < 0 ) std::swap(poi_nom_up[i], poi_nom_down[i]);
+        
+        poi_up[i]       = fabs(poi_up[i]);
+        poi_down[i]     = fabs(poi_down[i]);
         poi_nom_up[i]   = fabs(poi_nom_up[i]);
         poi_nom_down[i] = fabs(poi_nom_down[i]);
-
-        poi_hat[i] = 0;
+        poi_hat[i]      = 0;
     }
 
     // do the sum for printout at the end
     double sum_poi2 = 0.;
     for (int i = 0; i < nrNuis; ++i) {  
-        double up = fabs(poi_up[i] - poi_hat[i]);
+        double up   = fabs(poi_up[i] - poi_hat[i]);
         double down = fabs(poi_up[i] - poi_hat[i]);
         sum_poi2 += pow((up+down)/2, 2);
     }
@@ -334,15 +218,22 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
     // find maximal error due to a single nuisance parameter
     double max_poi = 0.;
     for (int i = 0; i < nrNuis; ++i) {
-        if (poi_up[i] > max_poi) max_poi = poi_up[i];
+        if (poi_up[i]   > max_poi) max_poi = poi_up[i];
         if (poi_down[i] > max_poi) max_poi = poi_down[i];
     }
-    // TODO: for overlay as well? maybe get rid of this...
 
     // get labels
     std::vector<std::string> labels;
-    int nlines = 0;
-    std::ifstream idFile(("output/"+cardName+"/ascii/pulls_id.txt").c_str());
+    std::vector<std::string> nf_labels;
+    std::vector<std::string> cats_labels;
+    int nlines      = 0;
+    int nf_nlines   = 0;
+    int cats_nlines = 0;
+
+    std::ifstream idFile ( file_pulls_id);
+    std::ifstream idFile2( file_pulls_nf_id );
+    std::ifstream idFile3( file_breakdown_add_id ); 
+    
     while (1) {
         if (!idFile.good() || nlines > nrNuis-1) break;
         string label;
@@ -351,10 +242,6 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
         cout << "added: " << label << endl;
         nlines++;
     }
-
-    vector<string> nf_labels;
-    Int_t nf_nlines = 0;
-    ifstream idFile2(("output/"+cardName+"/ascii/pulls_nf_id.txt").c_str());
     while (1) {
         if (!idFile2.good() || nf_nlines > nrNFs-1) break;
         string nf_label;
@@ -362,10 +249,6 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
         nf_labels.push_back(nf_label);
         nf_nlines++;
     }
-
-    vector<string> cats_labels;
-    Int_t cats_nlines = 0;
-    ifstream idFile3(("output/"+cardName+"/ascii/breakdown_add_id.txt").c_str());
     while (1) {
         if (!idFile3.good() || cats_nlines > nrCats-1) break;
         string cat_label;
@@ -375,7 +258,7 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
     }
 
     // map of category uncertainties
-    map<string, vector<double> > cat_uncerts;
+    std::map<string, vector<double> > cat_uncerts;
     for (int i = 0; i < nrCats; i++) {
         string index = cats_labels[i];
         cout << i << " " << index << " " << cats_val[i] << " " << cats_up[i] << " " << cats_down[i] << endl;
@@ -390,9 +273,6 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
     double sigma_tot_hi  = cat_uncerts["total"][1];
     double sigma_tot_lo  = cat_uncerts["total"][2];
 
-    // hardcoded for now
-    // double sigma_tot_hi  = 0.;
-    //     double sigma_tot_lo  = 0.;
     double sigma_stat_hi = 0.;
     double sigma_stat_lo = 0.;
     double sigma_syst_hi = 0.;
@@ -427,52 +307,43 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
         nuis_map_sign[index].push_back(poi_nom_down_sign[i]);
     }
 
-    // check that we have in both maps the same keys
-
     // Getting the vectors back
     nrNuis    = labels.size();
 
     for (int i = 0; i < nrNuis-1; i++) {
         for (int j = 0; j < nrNuis-1-i; j++) {
             if (strcmp(labels[i].c_str(),labels[i+1].c_str())) {
-                swap(labels[j], labels[j+1]);
+                std::swap(labels[j], labels[j+1]);
             }
         }
     }
 
-
     for (int i = 0; i < nrNuis; i++) {
         if(isSignalNP(labels[i])){
-            val[i] = 0;
-            up[i] = 0;
-            down[i] = 0;
-            poi_hat[i] = 0;
-            poi_up[i] = 0;
-            poi_down[i] = 0;
-            poi_nom_up[i] = 0;
+            val[i]          = 0;
+            up[i]           = 0;
+            down[i]         = 0;
+            poi_hat[i]      = 0;
+            poi_up[i]       = 0;
+            poi_down[i]     = 0;
+            poi_nom_up[i]   = 0;
             poi_nom_down[i] = 0;
-        }else{
-            val[i] = nuis_map[labels[i]][0];
-            up[i] = nuis_map[labels[i]][1];
-            down[i] = nuis_map[labels[i]][2];
-            poi_hat[i] = nuis_map[labels[i]][3];
-            poi_up[i] = nuis_map[labels[i]][4];
-            poi_down[i] = nuis_map[labels[i]][5];
-            poi_nom_up[i] = nuis_map[labels[i]][6];
-            poi_nom_down[i] = nuis_map[labels[i]][7];
-        }
-    }
-
-    for (int i = 0; i < nrNuis; i++) {
-        if(isSignalNP(labels[i])){
-            poi_up_sign[i] = 0;
-            poi_down_sign[i] = 0;
-            poi_nom_up_sign[i] = 0;
+            poi_up_sign[i]       = 0;
+            poi_down_sign[i]     = 0;
+            poi_nom_up_sign[i]   = 0;
             poi_nom_down_sign[i] = 0;
         }else{
-            poi_up_sign[i] = nuis_map_sign[labels[i]][4];
-            poi_down_sign[i] = nuis_map_sign[labels[i]][5];
-            poi_nom_up_sign[i] = nuis_map_sign[labels[i]][6];
+            val[i]          = nuis_map[labels[i]][0];
+            up[i]           = nuis_map[labels[i]][1];
+            down[i]         = nuis_map[labels[i]][2];
+            poi_hat[i]      = nuis_map[labels[i]][3];
+            poi_up[i]       = nuis_map[labels[i]][4];
+            poi_down[i]     = nuis_map[labels[i]][5];
+            poi_nom_up[i]   = nuis_map[labels[i]][6];
+            poi_nom_down[i] = nuis_map[labels[i]][7];
+            poi_up_sign[i]       = nuis_map_sign[labels[i]][4];
+            poi_down_sign[i]     = nuis_map_sign[labels[i]][5];
+            poi_nom_up_sign[i]   = nuis_map_sign[labels[i]][6];
             poi_nom_down_sign[i] = nuis_map_sign[labels[i]][7];
         }
     }
@@ -480,51 +351,12 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
     // sort poi values by variation size
     int test_idx=-1;
     int NPoi=POItotal;
-    if (rankNuis) {
-        if (rankPOI_top) {
-            for (int i=nrNuis-POItotal+1 ; i<nrNuis-1;i++){
-                for (int j = nrNuis-POItotal+1; j < nrNuis-1-(i-nrNuis+POItotal-1); j++) {
-                    bool doSwap = false;
-                    if (m_postFitOrder) {
-                        doSwap = poi_up[j]+poi_down[j] > poi_up[j+1]+poi_down[j+1];
-                    } else {
-                        doSwap = poi_nom_up[j]+poi_nom_down[j] > poi_nom_up[j+1]+poi_nom_down[j+1];
-                    }
-                    if (doSwap) {
-                        // swap postfit poi
-                        swap(poi_up[j], poi_up[j+1]);
-                        swap(poi_down[j], poi_down[j+1]);
-                        swap(poi_up_sign[j], poi_up_sign[j+1]);
-                        swap(poi_down_sign[j], poi_down_sign[j+1]);
-
-                        // swap prefit poi
-                        swap(poi_nom_up[j], poi_nom_up[j+1]);
-                        swap(poi_nom_down[j], poi_nom_down[j+1]);
-
-                        // swap pulls
-                        swap(up[j], up[j+1]);
-                        swap(down[j], down[j+1]);
-                        swap(val[j], val[j+1]);
-
-                        // swap names
-                        swap(labels[j], labels[j+1]);
-                    }
-                }
-            }
-        }
-    }
-
     int NPoi=1;
-    if (rankPOI_top) NPoi=POItotal;
-
     for (int i = 0; i < nrNuis-NPoi; i++) {
         for (int j = 0; j < nrNuis-NPoi-i; j++) {
             bool doSwap = false;
-            if (m_postFitOrder) {
-                doSwap = poi_up[j]+poi_down[j] > poi_up[j+1]+poi_down[j+1];
-            } else {
-                doSwap = poi_nom_up[j]+poi_nom_down[j] > poi_nom_up[j+1]+poi_nom_down[j+1];
-            }
+            if (m_postFitOrder) { doSwap = poi_up[j]+poi_down[j] > poi_up[j+1]+poi_down[j+1]; } 
+            else                { doSwap = poi_nom_up[j]+poi_nom_down[j] > poi_nom_up[j+1]+poi_nom_down[j+1]; }
             if (doSwap) {
                 // swap postfit poi
                 swap(poi_up[j], poi_up[j+1]);
@@ -588,12 +420,6 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
     // make the final arrays for plotting, in particular remove parameters
     int nrNuis2remove = 0;
     for (int i = 0; i < nrNuis; i++) {
-        // pring average effect
-        //double varDo = fabs(poi_down[i]-poi_hat[i]);
-        //double varUp = fabs(poi_up[i]-poi_hat[i]);
-        //double var = (varDo + varUp) / 2.;
-        //cout << "Rank " << nrNuis - i << ":  \t" << var << "  \t" << labels[i] << endl;
-
         // print up and down effect
         cout << "Rank " << nrNuis - i << ":  \t" << fabs(poi_down[i]-poi_hat[i]) << "  \t" << fabs(poi_up[i]-poi_hat[i]) << "  \t" << labels[i] << endl;
         if ( fabs(poi_down[i]-poi_hat[i]) > 150 ) cout << " --  " << poi_down[i] << " " << poi_hat[i] << " " << poi_up[i] <<endl;
@@ -613,19 +439,17 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
     down.erase(down.begin(), down.begin() + nrNuis2remove);
     up.erase(up.begin(), up.begin() + nrNuis2remove);
 
-    poi_hat.erase(poi_hat.begin(), poi_hat.begin() + nrNuis2remove);
-    poi_down.erase(poi_down.begin(), poi_down.begin() + nrNuis2remove);
-    poi_up.erase(poi_up.begin(), poi_up.begin() + nrNuis2remove);
-    poi_down_sign.erase(poi_down_sign.begin(), poi_down_sign.begin() + nrNuis2remove);
-    poi_up_sign.erase(poi_up_sign.begin(), poi_up_sign.begin() + nrNuis2remove);
-
-    poi_nom_down.erase(poi_nom_down.begin(), poi_nom_down.begin() + nrNuis2remove);
-    poi_nom_up.erase(poi_nom_up.begin(), poi_nom_up.begin() + nrNuis2remove);
-
-    boxdown.erase(boxdown.begin(), boxdown.begin() + nrNuis2remove);
-    boxup.erase(boxup.begin(), boxup.begin() + nrNuis2remove);
-    cendown.erase(cendown.begin(), cendown.begin() + nrNuis2remove);
-    cenup.erase(cenup.begin(), cenup.begin() + nrNuis2remove);
+    poi_hat      .erase(poi_hat.begin()      , poi_hat      .begin() + nrNuis2remove );
+    poi_down     .erase(poi_down.begin()     , poi_down     .begin() + nrNuis2remove );
+    poi_up       .erase(poi_up.begin()       , poi_up       .begin() + nrNuis2remove );
+    poi_down_sign.erase(poi_down_sign.begin(), poi_down_sign.begin() + nrNuis2remove );
+    poi_up_sign  .erase(poi_up_sign.begin()  , poi_up_sign  .begin() + nrNuis2remove );
+    poi_nom_down .erase(poi_nom_down.begin() , poi_nom_down .begin() + nrNuis2remove );
+    poi_nom_up   .erase(poi_nom_up.begin()   , poi_nom_up   .begin() + nrNuis2remove );
+    boxdown      .erase(boxdown.begin()      , boxdown      .begin() + nrNuis2remove );
+    boxup        .erase(boxup.begin()        , boxup        .begin() + nrNuis2remove );
+    cendown      .erase(cendown.begin()      , cendown      .begin() + nrNuis2remove );
+    cenup        .erase(cenup.begin()        , cenup        .begin() + nrNuis2remove );
 
     nrNuis -= nrNuis2remove;
 
@@ -640,7 +464,7 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
         poi_nom_up[i] = fabs(poi_nom_up[i]) * scale_poi / max_poi;
         poi_nom_down[i] = fabs(poi_nom_down[i]) * scale_poi / max_poi;
 
-        if(labels[i].find("gamma") != std::string::npos){
+        if( labels[i].find("gamma") != std::string::npos ){
             poi_nom_up[i] = 0;
             poi_nom_down[i] = 0;
         }
@@ -657,6 +481,7 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
         up[i] = fabs(up[i]) * scale_theta;
         down[i] = fabs(down[i]) * scale_theta;
     }
+
     // change to the right pad
     pad1->cd();
     // make plot of pulls for nuisance parameters
@@ -730,28 +555,6 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
     gr_shades->SetLineWidth(1);
     gr_shades->SetMarkerSize(0);
 
-    // histogram to get the nuisance parameter labels correct
-    //    TH2F *h = new TH2F("h", "", 1, border_lo, border_hi, nrNuis+offset+1, -offset, nrNuis+1);
-    //    vector<int> isNorm;
-    //    for (int i = offset; i < nrNuis+offset; i++){
-    //        if(labels[i-offset].find("norm")!= string::npos)
-    //            isNorm.push_back(1);
-    //        else
-    //            isNorm.push_back(0);
-    //        bool isBDT = false;
-    //        if(cardName.find("MVA") != string::npos)
-    //            isBDT = true;
-    //        TString tmpName = labels[i-offset];
-    //        bool is8TeV = tmpName.Contains("8TeV");
-    //        tmpName = tmpName.ReplaceAll("_8TeV","");
-    //        TString newLabels = translateNPname(tmpName, isBDT);
-    ////        if(is8TeV)
-    ////            newLabels+=" 8TeV";
-    //        cout<<(i-offset)<<"th NP Renamed "<<labels[i-offset]<<" -> "<<newLabels<<endl;
-    ////        h->GetYaxis()->SetBinLabel(i+1, drawParamNames?labels[i-offset].c_str():"");
-    ////        h->GetYaxis()->SetBinLabel(i+1, drawParamNames?newLabels.c_str():"");
-    //        h->GetYaxis()->SetBinLabel(i+1, drawParamNames?newLabels.Data():"");
-    //    }
     //Added
     TH2F *h = new TH2F("h", "", 1, border_lo, border_hi, nrNuis+offset+1, -offset, nrNuis+1);
     vector<int> isNorm;
@@ -767,11 +570,7 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
         bool is8TeV = tmpName.Contains("8TeV");
         tmpName = tmpName.ReplaceAll("_8TeV","");
         TString newLabels = translateNPname(tmpName, isBDT);
-        //        if(is8TeV)
-        //            newLabels+=" 8TeV";
         cout<<(i-offset)<<"th NP Renamed "<<labels[i-offset]<<" -> "<<newLabels<<endl;
-        //        h->GetYaxis()->SetBinLabel(i+1, drawParamNames?labels[i-offset].c_str():"");
-        //        h->GetYaxis()->SetBinLabel(i+1, drawParamNames?newLabels.c_str():"");
         h->GetYaxis()->SetBinLabel(i+1, drawParamNames?newLabels.Data():"");
     }
 
@@ -805,8 +604,6 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
             }
         }
     }
-    //
-    //    TGraphAsymmErrors* gr_norm = makeGraphErr("", val_norm.size(), getAry(val_norm), getAry(points_nuis_norm), getAry(down_norm), getAry(up_norm), NULL, NULL);
     TGraphAsymmErrors* gr      = makeGraphErr("", val_pull.size(), getAry(val_pull), getAry(points_nuis_pull), getAry(down_pull), getAry(up_pull), NULL, NULL);
     gr->SetLineColor(kBlack);
     gr->SetMarkerColor(kBlack);
@@ -830,12 +627,10 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
     h->SetLabelSize(labelSize>UserlabelSize?UserlabelSize:labelSize,"Y");//label size
     h->GetXaxis()->SetLabelColor(kWhite);
     h->GetXaxis()->SetAxisColor(kWhite);
-    //h->GetXaxis()->SetRangeUser(-2,2);
     h->GetYaxis()->SetLabelColor(kBlack);
     h->GetYaxis()->SetAxisColor(kBlack);
     h->GetYaxis()->SetTickLength(0.);
     h->SetStats(0);
-    // h->LabelsDeflate();
     h->Draw("h");
     // TODO: order should be the same for overlay, so just do it once
 
@@ -850,7 +645,7 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
 
     // axis for the POI correlation
     TGaxis *axis_poi = new TGaxis(border_lo, nrNuis+1, border_hi, nrNuis+1, (-sigma_tot_lo) / scale_poi, (sigma_tot_hi) / scale_poi, 510, "-L");
-    cout <<" Top range from "<< (-sigma_tot_lo) / scale_poi <<" to "<< (sigma_tot_hi) / scale_poi << endl;
+    std::cout <<" Top range from "<< (-sigma_tot_lo) / scale_poi <<" to "<< (sigma_tot_hi) / scale_poi << std::endl;
     axis_poi->ImportAxisAttributes(h->GetXaxis());
     axis_poi->SetName("axis_poi");
     // if (useRelativeImpact) axis_poi->SetTitle("#Delta#hat{#mu}/#Delta#hat{#mu}_{tot}");
@@ -858,9 +653,6 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
     if (useRelativeImpact) axis_poi->SetTitle("#Delta#mu/#Delta#mu_{tot}");
     else axis_poi->SetTitle("#Delta#mu");
     axis_poi->SetTitleOffset(1.1);
-    //    axis_poi->SetLineColor(kBlack);
-    //    axis_poi->SetLabelColor(kBlack);
-    //    axis_poi->SetTitleColor(kBlack);
     axis_poi->SetLineColor(kBlue);
     axis_poi->SetLabelColor(kBlue);
     axis_poi->SetTitleColor(kBlue);
@@ -872,8 +664,6 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
     cout <<" Bottom range from "<< (-sigma_tot_lo / max_poi) / scale_theta <<" to "<< (sigma_tot_hi / max_poi) / scale_theta << endl;
     axis_theta->ImportAxisAttributes(h->GetXaxis());
     axis_theta->SetName("axis_theta");
-    //    axis_theta->SetTitle("Pull");
-    //    axis_theta->SetTitle("#color[1]{Pull, }#color[2]{Normalization}");
     axis_theta->SetTitle("");
     axis_theta->SetTitleOffset(1.1);
     axis_theta->SetLineColor(kBlack);
@@ -1003,22 +793,93 @@ void draw_pulls2(string cardName, string mass, TCanvas* c1, TPad* pad1, TPad* pa
 
     leg->Draw();
 
-    // draw the normalisations
-    if (drawInset) {
-        pad2->cd();
+    std::cout << "total unc = " << (fabs(sigma_tot_hi) + fabs(sigma_tot_lo)) / 2 << std::endl;
+    std::cout << "sum of sq = " << sqrt(sum_poi2) << std::endl;
 
-        TLine l2;
-        l2.SetLineWidth(2);
-        l2.SetLineColor(13);
-        l2.SetLineStyle(2);
+    pad1->cd();
 
-        h2->Draw();
-        l2.DrawLine(1., 0., 1., nrNFs);
-        gr_nf->Draw("p");
+    labelPosY = channelPosY-0.02;
+    //ATLASLabel(labelPosX,labelPosY,"\nInternal",1);
+
+    TLatex p;
+    p.SetNDC();
+    p.SetTextFont(42);
+    p.DrawLatex(labelPosX,labelPosY-0.04,labelTxt.c_str());
+
+    TLatex t3;
+    t3.SetTextSize(0.025);
+    t3.SetNDC();
+    TString lumi = lumi5;
+    if      ( parsed[0].find("mc16a_")  != std::string::npos) lumi = lumi2;
+    else if ( parsed[0].find("mc16d_")  != std::string::npos) lumi = lumi3;
+    else if ( parsed[0].find("mc16ad_") != std::string::npos) lumi = lumi4;
+    else if ( parsed[0].find("mc16ade_")!= std::string::npos) lumi = lumi5;
+
+    TString stex = "#sqrt{s} = " + energy2 + " TeV";//, #int Ldt = " + lumi2 + " fb^{-1}";
+    TString lumitex2 = lumi + " fb^{-1}"; // Updated luminosity style
+    t3.DrawLatex(channelPosX-0.020, channelPosY, stex.Data());
+    t3.DrawLatex(channelPosX-0.020, channelPosY-0.04, lumitex2.Data());
+
+    TLatex t2;
+    t2.SetTextSize(0.025);
+    t2.SetNDC();
+
+    char const* tmp = getenv("ANALYSISTYPE");
+    if ( tmp == NULL ) {
+        std::cout << "Couldn't getenv ANALYSISTYPE" << std::endl;
+    } else {
+        std::string s( tmp );
     }
 
-    cout << "total unc = " << (fabs(sigma_tot_hi) + fabs(sigma_tot_lo)) / 2 << endl;
-    cout << "sum of sq = " << sqrt(sum_poi2) << endl;
+    t2.DrawLatex(channelPosX-0.020, channelPosY-0.075, ("m_{A}="+mass+" GeV").c_str());
+
+    std::stringstream saveName;
+    saveName << "output/" << cardName << "/pulls_" << POIname <<"_";
+    std::cout << saveName.str() << std::endl;
+    if (!m_postFitOrder) saveName << "prefit_";
+    saveName << mass;
+    c1->Draw();
+    c1->SaveAs( Form("pulls_%s.pdf", POIname.c_str()) );
+    c1->Closed();
+    delete c1;
+}
+
+// before we are using draw_pulls3, now we want to do the multiple mus, so we add a shell outside draw_pulls3
+void draw_pulls(std::string mass = "125", std::string cardName = "test", float scale_factor = 1.7, std::string overlayCard="", bool postFitOrder = true) 
+{
+    std::vector<std::string> parsed = parseString(cardName, ":");
+    cardName = parsed[0];
+
+    // TODO: check if following two lines are needed?
+    computeFlags(cardName);
+    applyOverlay(overlayCard , overlay , "");
+
+    // Create ascii tables
+    std::cout << "ROOT2Ascii"<< std::endl;
+    ROOT2Ascii("output/test/root-files/pulls");
+    ROOT2Ascii("output/test/root-files/breakdown_add");
+
+    // find out how many POIs
+    TFile* infile = NULL;
+    infile = new TFile( "output/test/root-files/breakdown_add/total.root");
+    TH1D* hist = (TH1D*)infile->Get("total");
+    int nBins = hist->GetNbinsX();
+    if ( nBins%3 != 0) {
+        cout << "Wired number of bins, it should contain central/up/down for each POI " <<endl;
+        exit(1);
+    }
+
+    std::cout << "Start the poi loop"<< std::endl;
+    int POItotal = nBins/3;
+    for ( int POIpos = 0; POIpos < POItotal; POIpos++) {
+        std::string POIname = hist->GetXaxis()->GetBinLabel(POIpos*3+1);
+        std::cout << "Do the ranking plot for POI: "<< POIname << " as " << POIpos+1 << " (starting from 1) of " << nBins/3 << std::endl;
+
+        // for each POI do the plot
+        draw_pulls3( mass, cardName, scale_factor, overlayCard, postFitOrder, POIname, POIpos, POItotal);
+    }
+
+    infile->Close();
 }
 
 // ____________________________________________________________________________|__________
