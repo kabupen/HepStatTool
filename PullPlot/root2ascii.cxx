@@ -18,7 +18,7 @@ void root2ascii( TString dir_root )
     }
 
     std::vector<TString> list;
-    TSystemDirectory  dire((dir_root).c_str(), (dir_root).c_str() );
+    TSystemDirectory  dire(dir_root, dir_root);
     TList* files = dire.GetListOfFiles();
     TIter next(files);
     while( TSystemFile* file = (TSystemFile*)next() ) {
@@ -86,11 +86,8 @@ void root2ascii( TString dir_root )
 
     std::cout << "Writing to file: " << outFileName.str() << "*.txt" << std::endl;
 
-    outFile.close();
-    outFile_id.close();
-
-    if ( mode == pulls ) {
-        outFile_nf   .close();
-        outFile_nf_id.close();
-    }
+    outFile      .close();
+    outFile_id   .close();
+    outFile_nf   .close();
+    outFile_nf_id.close();
 }
