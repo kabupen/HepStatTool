@@ -25,6 +25,8 @@
 #include <map>
 #include <algorithm>
 
+#include "root2ascii.cxx"
+
 using namespace std;
 
 // global style options
@@ -48,8 +50,6 @@ bool scaleGammas           = false; // switch to scale gamma nuisance parameters
 int useBreakdown           = 0;     // 0 = add, 1 = sub
 //double scale_poi           = 1.25;  // zoom the impact axis
 //double scale_theta         = 2.20;  // zoom the pull axis
-bool removeHbb             = false; // remove Hbb parameters from the plot
-bool removeHtt             = false; // remove Htt parameters from the plot
 bool isVH                  = true; // switch only when using the flag removeSigUnc. True is VH, false is VZ 
 bool removeSigUnc          = false; // remove signal uncertainties from the plot
 int showTopParameters      = 15; // -1 to show all parameters
@@ -67,14 +67,12 @@ Color_t color_postfit      = kBlue-4;
 bool m_postFitOrder          = true;
 bool rankPOI_top           = false;
 
-void ROOT2Ascii(string folder);
-//void loadFile(const char* fileName, int cols, fileHolder file);
 vector<string> getLabel(const char* fileName, int nrPars);
 TString translateNPname(TString internalName, bool isMVA);
 TString translateGammaStatName(TString internalName);
 bool isSignalNP(string NPname);
 
-void draw_pulls3(string mass = "125", string cardName = "", float scale_factor = 1.7,  string overlayCard="", bool postFitOrder = true, string POIname = "SigXsecOverSM", int POIpos = 0, int POItotal = 1) 
+void draw_pulls3(std::string mass = "125", std::string cardName = "", float scale_factor = 1.7,  std::string overlayCard="", bool postFitOrder = true, std::string POIname = "SigXsecOverSM", int POIpos = 0, int POItotal = 1) 
 {
     gStyle->SetHatchesLineWidth(hatch_width);
 
@@ -126,12 +124,9 @@ void draw_pulls3(string mass = "125", string cardName = "", float scale_factor =
     if ( testFile2.fail() ) { std::cout << "ERROR::file " << file_pulls_nf       << "does not exist." << std::endl; exit(1); }
     if ( testFile3.fail() ) { std::cout << "ERROR::file " << file_breakdown_add << "does not exist." << std::endl; exit(1); }
     
-    fileHolder pulls;
-    fileHolder nfs;
-    fileHolder cats;
-    drawPlot( file_pulls         , 3+POItotal*5, pulls);
-    drawPlot( file_pulls_nf      , 3+POItotal*5, nfs);
-    drawPlot( file_breakdown_add, POItotal*3  , cats);
+    FileHolder pulls( file_pulls         , 3+POItotal*5);
+    FileHolder nfs  ( file_pulls_nf      , 3+POItotal*5);
+    FileHolder cats ( file_breakdown_add , POItotal*3  );
 
     // get the values from the ascii files
     int nrNuis = pulls.massPoints.size();
@@ -172,7 +167,7 @@ void draw_pulls3(string mass = "125", string cardName = "", float scale_factor =
     std::vector<double> cats_up   = cats.getCol(1+3*POIpos);
     std::vector<double> cats_down = cats.getCol(2+3*POIpos);
 
-    // set correct values for the poi
+    std::cout << "Set correct values for the poi" << std::endl;
     float scale_theta = scale_factor;
     float scale_poi   = scale_factor;
 
@@ -207,7 +202,7 @@ void draw_pulls3(string mass = "125", string cardName = "", float scale_factor =
         poi_hat[i]      = 0;
     }
 
-    // do the sum for printout at the end
+    std::cout << "Do the sum for printout at the end" << std::endl;
     double sum_poi2 = 0.;
     for (int i = 0; i < nrNuis; ++i) {  
         double up   = fabs(poi_up[i] - poi_hat[i]);
@@ -215,7 +210,7 @@ void draw_pulls3(string mass = "125", string cardName = "", float scale_factor =
         sum_poi2 += pow((up+down)/2, 2);
     }
 
-    // find maximal error due to a single nuisance parameter
+    std::cout << "Find maximal error due to a single nuisance parameter" << std::endl;
     double max_poi = 0.;
     for (int i = 0; i < nrNuis; ++i) {
         if (poi_up[i]   > max_poi) max_poi = poi_up[i];
@@ -257,29 +252,45 @@ void draw_pulls3(string mass = "125", string cardName = "", float scale_factor =
         cats_nlines++;
     }
 
-    // map of category uncertainties
+    std::cout << "Map of category uncertainties" << std::endl;
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     std::map<string, vector<double> > cat_uncerts;
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     for (int i = 0; i < nrCats; i++) {
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
         string index = cats_labels[i];
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
         cout << i << " " << index << " " << cats_val[i] << " " << cats_up[i] << " " << cats_down[i] << endl;
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
         cat_uncerts[index].push_back(cats_val[i]);
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
         cat_uncerts[index].push_back(cats_up[i]);
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
         cat_uncerts[index].push_back(cats_down[i]);
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     }
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
 
     for( auto a:cat_uncerts )
         std::cout<<a.first<<" "<<a.second.size()<< std::endl;
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
 
     double sigma_tot_hi  = cat_uncerts["total"][1];
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     double sigma_tot_lo  = cat_uncerts["total"][2];
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
 
     double sigma_stat_hi = 0.;
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     double sigma_stat_lo = 0.;
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     double sigma_syst_hi = 0.;
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     double sigma_syst_lo = 0.;
+    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     // TODO: can probably drop this
 
-    // dump everything in maps
+    std::cout << "Dump everything in maps" << std::endl;
     std::map< std::string, std::vector<double> > nuis_map;
     for ( int i = 0; i < nrNuis; i++) {
         string index = labels[i];      
@@ -293,7 +304,7 @@ void draw_pulls3(string mass = "125", string cardName = "", float scale_factor =
         nuis_map[index].push_back(poi_nom_down[i]);
     }
 
-    // dump everything in maps
+    std::cout << "Dump everything in maps" << std::endl;
     std::map<std::string, std::vector<double> > nuis_map_sign;
     for (int i = 0; i < nrNuis; i++) {
         string index = labels[i];
@@ -351,7 +362,6 @@ void draw_pulls3(string mass = "125", string cardName = "", float scale_factor =
     // sort poi values by variation size
     int test_idx=-1;
     int NPoi=POItotal;
-    int NPoi=1;
     for (int i = 0; i < nrNuis-NPoi; i++) {
         for (int j = 0; j < nrNuis-NPoi-i; j++) {
             bool doSwap = false;
@@ -855,9 +865,9 @@ void draw_pulls(std::string mass = "125", std::string cardName = "test", float s
     applyOverlay(overlayCard , overlay , "");
 
     // Create ascii tables
-    std::cout << "ROOT2Ascii"<< std::endl;
-    ROOT2Ascii("output/test/root-files/pulls");
-    ROOT2Ascii("output/test/root-files/breakdown_add");
+    root2ascii( "output/test/root-files/pulls" );
+    root2ascii( "output/test/root-files/breakdown_add" );
+    std::cout << "Finished to create the ascii files" << std::endl;
 
     // find out how many POIs
     TFile* infile = NULL;
@@ -873,7 +883,7 @@ void draw_pulls(std::string mass = "125", std::string cardName = "test", float s
     int POItotal = nBins/3;
     for ( int POIpos = 0; POIpos < POItotal; POIpos++) {
         std::string POIname = hist->GetXaxis()->GetBinLabel(POIpos*3+1);
-        std::cout << "Do the ranking plot for POI: "<< POIname << " as " << POIpos+1 << " (starting from 1) of " << nBins/3 << std::endl;
+        std::cout << "Do the ranking plot for POI: "<< POIname << " as " << POIpos+1 << " (starting from 1) of " << POItotal << std::endl;
 
         // for each POI do the plot
         draw_pulls3( mass, cardName, scale_factor, overlayCard, postFitOrder, POIname, POIpos, POItotal);
@@ -883,118 +893,6 @@ void draw_pulls(std::string mass = "125", std::string cardName = "test", float s
 }
 
 // ____________________________________________________________________________|__________
-// dump ROOT file to ascii table
-void ROOT2Ascii(string folder) 
-{
-    TString asciiFolder(folder);
-    asciiFolder.ReplaceAll("root-files", "ascii");
-    system(("mkdir -vp "+asciiFolder));
-
-    enum ConvertMode {pulls, breakdown};
-
-    ConvertMode mode;
-    if (folder.find("pulls") != string::npos) {
-        mode = pulls;
-    } else if (folder.find("breakdown") != string::npos) {
-        mode = pulls;
-    } else {
-        cout << "ERROR::Something went wrong." << endl;
-        exit(1);
-    }
-
-    bool ignoreInfNan = 1;
-
-    std::vector<TString> list;
-
-    TSystemDirectory  dire((folder).c_str(), (folder).c_str());
-
-    TList *files = dire.GetListOfFiles();
-    TIter next(files);
-    TSystemFile *file;
-    TString fname;
-    while((file = (TSystemFile*)next())) {
-        fname = file->GetName();
-        if(file->IsDirectory()) continue;
-
-        if (removeHbb && fname.Contains("Hbb")) continue;
-        if (removeHtt && (fname.Contains("Htt") || fname.Contains("ATLAS_TAU"))) continue;
-        list.push_back(fname.Data());
-    }
-
-    stringstream outFileName;
-    //outFileName << folder << "/ascii/";
-    outFileName << asciiFolder;
-
-    ofstream outFile((outFileName.str()+".txt").c_str());
-    ofstream outFile_id((outFileName.str()+"_id.txt").c_str());
-    ofstream outFile_nf((outFileName.str()+"_nf.txt").c_str());
-    ofstream outFile_nf_id((outFileName.str()+"_nf_id.txt").c_str());
-
-    int nrNPs = 0;
-    int nrNFs = 0;
-
-    for(vector<TString>::iterator it = list.begin(); it != list.end(); it++) {
-        stringstream fileName;
-        fileName << folder << "/" << *it;
-
-        bool isNorm = false;
-        bool success = true;
-        bool isInfNan = false;
-
-        TFile* f = NULL;
-        f = new TFile(fileName.str().c_str());
-        if (f && !f->IsOpen()) success = false;
-
-        if (!success) {
-            cout << "ERROR: Could not open file " << fileName.str() << endl;
-            continue;
-        }
-
-        TString histoName = it->ReplaceAll(".root", "");
-
-        TH1D* hist = (TH1D*)f->Get(histoName);
-
-        int nrBins = hist->GetNbinsX();
-
-        for (int bin = 1; bin <= nrBins; bin++) {
-            double number = hist->GetBinContent(bin);
-
-            // check inf
-            if (number > 10e9) isInfNan = true;
-
-            // check nan
-            if (number != number) isInfNan = true;
-        }
-
-        if (ignoreInfNan && isInfNan) {
-            cout << "WARNING::Skipping " << *it << " because of inf/nan" << endl;
-            continue;
-        }
-
-        (isNorm?outFile_nf:outFile) << (isNorm?nrNPs++:nrNFs++) << " ";
-
-        for (int bin = 1; bin <= nrBins; bin++) {
-            double number = hist->GetBinContent(bin);
-            (isNorm?outFile_nf:outFile) << number << ((bin < nrBins)?" ":"\n");
-        }
-
-        if (isNorm) outFile_nf_id << * it << "\n";
-        else outFile_id << * it << "\n";
-        if(mode==breakdown) outFile_id<<"~~*~*~*~*~*~*~*~*~*~ " << * it << "\n";
-
-        f->Close();
-    }
-
-    cout << "Writing to file: " << outFileName.str() << "*.txt" << endl;
-
-    outFile.close();
-    outFile_id.close();
-
-    if (mode == pulls) {
-        outFile_nf.close();
-        outFile_nf_id.close();
-    }
-}
 
 // ____________________________________________________________________________|__________
 // Return vector of strings from textfile
