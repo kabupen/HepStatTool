@@ -15,159 +15,128 @@ class FileHolder
         ~FileHolder();
 
     public:
-        void skipFirst() {skipFirstLine=true;}
         bool readInFile(std::string name);
         void writeOutFile(std::string name);
 
-        void setUseStrings(bool flag=true) {useStrings=flag;}
-        void setNrCols(int n) {nrCols = n;}
+        void setNrCols(int n) {m_nrCols = n;}
         void setRate(double mass, int col, double val);
 
-        double getRate(int row, int col) { return rates[row][col];}
+        double getRate(int row, int col) { return m_rates[row][col];}
         double getRateByMass(double mass, int col);
         std::vector<double> getCol(int col);
-        std::vector<double> getMassPoints() { return massPoints;};
+        std::vector<double> getMassPoints() { return m_massPoints; }
+        double getMassPointsSize() { return m_massPoints.size(); }
 
         void copy(FileHolder& alt);
         void removeMass(double mass);
         void addMass(double mass, std::vector<double>& rate);
         void addFile(FileHolder& other);
-        void addCol(std::vector<double>& addRates, int col);
+        void addCol(std::vector<double>& addm_rates, int col);
         void useMedian(int col);
 
-        int  nrCols;
-        bool skipFirstLine;
-        bool useStrings;
-        std::vector<std::vector<double> > rates; // row: mass, col: sample
-        std::vector<double>               massPoints;
-        std::vector<std::string>          massPointsS;
-        std::string                       _name;
+        int  m_nrCols;
+        std::vector<std::vector<double> > m_rates; // row: mass, col: sample
+        std::vector<double>               m_massPoints;
         int m_min_mass = 90;
         int m_max_mass = 600;
 };
 
 FileHolder::FileHolder() :
-    nrCols(8),
-    skipFirstLine(false),
-    useStrings(false)
+    m_nrCols(8)
 {}
 
-FileHolder::FileHolder(std::string file, int nrcols) :
-        skipFirstLine(false),
-        useStrings(false)
+FileHolder::FileHolder(std::string file, int columns_num) 
 {
-    FileHolder::setNrCols(nrcols);
-    FileHolder::readInFile(file);
-    std::vector<double> vec_massPoints_tmp = FileHolder::getMassPoints();
-    int nrNumbers = vec_massPoints_tmp.size();
+    if ( !FileHolder::readInFile(file) ) 
+        exit(1);
+
+    FileHolder::setNrCols(columns_num);
+    std::vector<double> tmpvec = FileHolder::getMassPoints();
+    int nrNumbers = tmpvec.size();
     for (int i=0; i < nrNumbers; i++) {
-        if ( vec_massPoints_tmp[i] < m_min_mass || vec_massPoints_tmp[i] > m_max_mass) {
-            FileHolder::removeMass(vec_massPoints_tmp[i]);
-        }
+        //        if ( tmpvec.at(i) < m_min_mass || tmpvec.at(i) > m_max_mass) {
+        //            FileHolder::removeMass(tmpvec[i]);
+        //        }
     }
 }
 
-bool FileHolder::readInFile(std::string name )
+FileHolder::~FileHolder()
 {
-    std::cout << "Reading in file: " << name << endl;
-    ifstream inFile(name.c_str());
-    _name=name;
-    if (inFile.fail()) {
-        std::cout << "ERROR::Couldn't open file: " << name << endl;
+}
+
+bool FileHolder::readInFile( std::string name )
+{
+    std::cout << "Reading in file: " << name << std::endl;
+    std::ifstream input_file(name.c_str());
+    if ( input_file.fail() ) {
+        std::cout << "ERROR::Couldn't open file: " << name << std::endl;
         return false;
     }
 
-    if (skipFirstLine) {
-        std::string junk;
-        getline(inFile, junk);
+    if ( input_file.eof() ) return true;
+
+    std::string line;
+    std::vector<double> tmp;
+    for ( int iRow = 0; getline(input_file, line); iRow++ ) {
+        m_massPoints.push_back(iRow);
+
+        std::istringstream stream(line);
+        double data;
+        for ( int col = 0; stream >> data; col++ ) { 
+            if ( col == 0 ) continue;
+            std::cout << data << std::endl;
+            tmp.push_back(data);
+        }
+        m_rates.push_back(tmp);
     }
-
-    int nrItr = 0;
-    while (!inFile.eof()) {
-        double mass;
-        std::string massS;
-
-        if (useStrings) {
-            inFile >> massS;
-        }
-        else {
-            inFile >> mass;
-        }
-
-        if (inFile.eof()) break;
-
-        bool fill=false;
-        if (!massPoints.size()/*bug in inputs*/) fill=true;
-        else if (mass != massPoints.back()) fill=true;
-
-        std::vector<double> numbers;
-        double number;
-        for (int i=0;i<nrCols;i++) {
-            inFile >> number;
-            numbers.push_back(number);
-        }
-
-        if (fill) {
-            massPoints.push_back(mass);
-            rates.push_back(numbers);
-        }
-
-        nrItr++;
-        //std::cout << "mass = " << mass << endl;
-        if (nrItr > 500) {
-            std::cout << "ERROR::Line overflow detected. Exiting." << endl;
-            return false;
-        }
-    }
-    std::cout << "Done" << endl;
-    inFile.close();
+    std::cout << "Done" << std::endl;
+    std::cout << m_massPoints.size() << std::endl;
+    input_file.close();
     return true;
 }
 
 void FileHolder::writeOutFile(std::string name)
 {
-    std::cout << "Writing file: " << name << endl;
+    std::cout << "Writing file: " << name << std::endl;
     ofstream outFile(name.c_str());
     if (outFile.fail())
     {
-        std::cout << "Error writing to file: " << name << endl;
+        std::cout << "Error writing to file: " << name << std::endl;
         return;
     }
 
-    int nrPoints = massPoints.size();
+    int nrPoints = m_massPoints.size();
     for (int i=0;i<nrPoints;i++)
     {
-        //std::cout << "adding point: " << massPoints[i] << endl;
-        outFile << massPoints[i];
-        for (int j=0;j<nrCols;j++)
+        //std::cout << "adding point: " << m_massPoints[i] << std::endl;
+        outFile << m_massPoints[i];
+        for (int j=0;j<m_nrCols;j++)
         {
-            //std::cout << "->rate=" << rates[i][j] << endl;
-            outFile << " " << rates[i][j];
+            //std::cout << "->rate=" << m_rates[i][j] << std::endl;
+            outFile << " " << m_rates[i][j];
         }
         outFile << "\n";
     }
     outFile.close();
 }
 
-std::vector<double> FileHolder::getCol(int col)
+std::vector<double> FileHolder::getCol(int column)
 {
-    std::vector<double> vec_col;
-    int nrPoints = massPoints.size();
-    for (int i=0;i<nrPoints;i++)
-    {
-        vec_col.push_back(rates[i][col]);
+    std::vector<double> vec_column;
+    for (int i=0;i< m_massPoints.size();i++) {
+        vec_column.push_back(m_rates[i][column]);
     }
-    return vec_col;
+    return vec_column;
 }
 
 double FileHolder::getRateByMass(double mass, int col)
 {
-    int nrPoints = massPoints.size();
+    int nrPoints = m_massPoints.size();
     for (int im=0;im<nrPoints;im++)
     {
-        if (mass == massPoints[im])
+        if (mass == m_massPoints[im])
         {
-            return rates[im][col];
+            return m_rates[im][col];
         }
     }
     return 0.;
@@ -175,11 +144,11 @@ double FileHolder::getRateByMass(double mass, int col)
 
 void FileHolder::setRate(double mass, int col, double val)
 {
-    for (int imass=0;imass<(int)massPoints.size();imass++)
+    for (int imass=0;imass<(int)m_massPoints.size();imass++)
     {
-        if (mass == massPoints[imass])
+        if (mass == m_massPoints[imass])
         {
-            rates[imass][col] = val;
+            m_rates[imass][col] = val;
             break;
         }
     }
@@ -187,96 +156,95 @@ void FileHolder::setRate(double mass, int col, double val)
 
 void FileHolder::copy(FileHolder& alt)
 {
-    alt.nrCols=nrCols;
-    alt.rates=rates;
-    alt.massPoints=massPoints;
+    alt.m_nrCols=m_nrCols;
+    alt.m_rates=m_rates;
+    alt.m_massPoints=m_massPoints;
 }
 
 void FileHolder::removeMass(double mass)
 {
     std::vector<double> newPoints;
-    std::vector<std::vector<double> > newRates;
-    int nrPoints = massPoints.size();
-    for (int i=0;i<nrPoints;i++)
-    {
-        if (massPoints[i] == mass) continue;
-        newPoints.push_back(massPoints[i]);
-        newRates.push_back(rates[i]);
+    std::vector<std::vector<double> > new_rates;
+    int nrPoints = m_massPoints.size();
+    for (int i=0;i<nrPoints;i++) {
+        if ( m_massPoints.at(i) == mass ) continue;
+        newPoints.push_back(m_massPoints[i]);
+        new_rates.push_back(m_rates[i]);
     }
-    massPoints = newPoints;
-    rates = newRates;
+    m_massPoints = newPoints;
+    m_rates      = new_rates;
 }
 
 void FileHolder::addMass(double mass, std::vector<double>& rate)
 {
-    //std::cout << "adding mass: " << mass << endl;
+    //std::cout << "adding mass: " << mass << std::endl;
     std::vector<double> newPoints;
-    std::vector<std::vector<double> > newRates;
+    std::vector<std::vector<double> > newm_rates;
 
     bool found = false;
-    int nrPoints = massPoints.size();
+    int nrPoints = m_massPoints.size();
     for (int i=0;i<nrPoints;i++)
     {
-        if ((massPoints[i] < mass && !found) || (massPoints[i] > mass && found))
+        if ((m_massPoints[i] < mass && !found) || (m_massPoints[i] > mass && found))
         {
-            newPoints.push_back(massPoints[i]);
-            newRates.push_back(rates[i]);
+            newPoints.push_back(m_massPoints[i]);
+            newm_rates.push_back(m_rates[i]);
         }
-        else if (massPoints[i] > mass && !found) 
+        else if (m_massPoints[i] > mass && !found) 
         {
-            //std::cout << "found" << endl;
+            //std::cout << "found" << std::endl;
 
             newPoints.push_back(mass);
-            newRates.push_back(rate);
+            newm_rates.push_back(rate);
 
-            newPoints.push_back(massPoints[i]);
-            newRates.push_back(rates[i]);
+            newPoints.push_back(m_massPoints[i]);
+            newm_rates.push_back(m_rates[i]);
 
             found = true;
         }
     }
-    massPoints = newPoints;
-    rates = newRates;
+    m_massPoints = newPoints;
+    m_rates = newm_rates;
 }
 
 void FileHolder::addFile(FileHolder& other)
 {
-    std::vector<double> otherPoints = other.massPoints;
-    std::vector<std::vector<double> > otherRates = other.rates;
+    std::vector<double> otherPoints = other.m_massPoints;
+    std::vector<std::vector<double> > otherm_rates = other.m_rates;
     for (int i=0;i<(int)otherPoints.size();i++)
     {
-        addMass(otherPoints[i], otherRates[i]);
+        addMass(otherPoints[i], otherm_rates[i]);
     }
 }
 
-void FileHolder::addCol(std::vector<double>& addRates, int col)
+void FileHolder::addCol(std::vector<double>& addm_rates, int col)
 {
-    int nrPoints = massPoints.size();
+    int nrPoints = m_massPoints.size();
     for (int i=0;i<nrPoints;i++)
     {
-        std::vector<double> newRates;
+        std::vector<double> newm_rates;
         for (int j=0;j<col;j++)
         {
-            newRates.push_back(rates[i][j]);
+            newm_rates.push_back(m_rates[i][j]);
         }
-        newRates.push_back(addRates[i]);
-        for (int j=col;j<(int)rates[i].size();j++)
+        newm_rates.push_back(addm_rates[i]);
+        for (int j=col;j<(int)m_rates[i].size();j++)
         {
-            newRates.push_back(rates[i][j]);
+            newm_rates.push_back(m_rates[i][j]);
         }
-        rates[i]=newRates;
+        m_rates[i]=newm_rates;
     }
-    nrCols++;
+    m_nrCols++;
 }
 
 void FileHolder::useMedian(int col)
 {
-    //std::cout << "in use median" << endl;
+    //std::cout << "in use median" << std::endl;
     set<double> vals;
-    int nrRates = rates.size();
-    for (int i=0;i<nrRates;i++)
+    int nrm_rates = m_rates.size();
+    for (int i=0;i<nrm_rates;i++)
     {
-        vals.insert(rates[i][col]);
+        vals.insert(m_rates[i][col]);
     }
     set<double>::iterator itr=vals.begin();
     int nrVals = vals.size();
@@ -285,9 +253,9 @@ void FileHolder::useMedian(int col)
         itr++;
     }
 
-    for (int i=0;i<nrRates;i++)
+    for (int i=0;i<nrm_rates;i++)
     {
-        rates[i][col] = *itr;
+        m_rates[i][col] = *itr;
     }
-    //std::cout << "out use median" << endl;
+    //std::cout << "out use median" << std::endl;
 }
