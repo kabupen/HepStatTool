@@ -15,7 +15,6 @@
 #include "TStyle.h"
 #include "TString.h"
 #include "TROOT.h"
-#include "drawPlot.C"
 #include <TPRegexp.h>
 #include <TObjString.h>
 #include <TObjArray.h>
@@ -25,6 +24,7 @@
 #include <map>
 #include <algorithm>
 
+#include "drawPlot.C"
 #include "root2ascii.cxx"
 
 using namespace std;
@@ -72,7 +72,7 @@ TString translateNPname(TString internalName, bool isMVA);
 TString translateGammaStatName(TString internalName);
 bool isSignalNP(string NPname);
 
-void draw_pulls3(std::string mass = "125", std::string cardName = "", float scale_factor = 1.7,  std::string overlayCard="", bool postFitOrder = true, std::string POIname = "SigXsecOverSM", int POIpos = 0, int POItotal = 1) 
+void draw_pulls_core(std::string mass = "125", std::string cardName = "", float scale_factor = 1.7,  std::string overlayCard="", bool postFitOrder = true, std::string POIname = "SigXsecOverSM", int POIpos = 0, int POItotal = 1) 
 {
     gStyle->SetHatchesLineWidth(hatch_width);
 
@@ -116,56 +116,50 @@ void draw_pulls3(std::string mass = "125", std::string cardName = "", float scal
     std::string file_pulls_id          = "output/" + cardName + "/ascii/pulls_id.txt";
     std::string file_pulls_nf_id       = "output/" + cardName + "/ascii/pulls_nf_id.txt";
     std::string file_breakdown_add_id  = "output/" + cardName + "/ascii/breakdown_add_id.txt";
-
-    std::ifstream testFile ( file_pulls );
-    std::ifstream testFile2( file_pulls_nf );
-    std::ifstream testFile3( file_breakdown_add );
-    if ( testFile.fail()  ) { std::cout << "ERROR::file " << file_pulls          << "does not exist." << std::endl; exit(1); }
-    if ( testFile2.fail() ) { std::cout << "ERROR::file " << file_pulls_nf       << "does not exist." << std::endl; exit(1); }
-    if ( testFile3.fail() ) { std::cout << "ERROR::file " << file_breakdown_add << "does not exist." << std::endl; exit(1); }
     
-    FileHolder pulls( file_pulls         , 3+POItotal*5);
-    FileHolder nfs  ( file_pulls_nf      , 3+POItotal*5);
-    FileHolder cats ( file_breakdown_add , POItotal*3  );
+    FileHolder* pulls = new FileHolder( file_pulls         , 3+POItotal*5);
+    FileHolder* nfs   = new FileHolder( file_pulls_nf      , 3+POItotal*5);
+    FileHolder* cats  = new FileHolder( file_breakdown_add , POItotal*3  );
 
     // get the values from the ascii files
-    int nrNuis = pulls.massPoints.size();
-    int nrNFs  = nfs  .massPoints.size();
-    int nrCats = cats .massPoints.size();
+    int nrNuis = pulls->getMassPointsSize();
+    int nrNFs  = nfs  ->getMassPointsSize();
+    int nrCats = cats ->getMassPointsSize();
+    std::cout << "nrCats=" << nrCats << std::endl;
 
-    std::vector<double> points_nuis = pulls.massPoints;
-    std::vector<double> points_nf   = nfs  .massPoints;
-    std::vector<double> points_cats = cats .massPoints;
+    std::vector<double> points_nuis = pulls->getMassPoints();
+    std::vector<double> points_nf   = nfs  ->getMassPoints();
+    std::vector<double> points_cats = cats ->getMassPoints();
 
     for (int i = 0; i < nrNuis; i++) points_nuis[i] = i + 0.5;
     for (int i = 0; i < nrNFs;  i++) points_nf[i]   = i + 0.5;
 
-    std::vector<double> val               = pulls.getCol(0);
-    std::vector<double> up                = pulls.getCol(1);
-    std::vector<double> down              = pulls.getCol(2);
-    std::vector<double> poi_hat           = pulls.getCol(3+5*POIpos);
-    std::vector<double> poi_up            = pulls.getCol(4+5*POIpos);
-    std::vector<double> poi_down          = pulls.getCol(5+5*POIpos);
-    std::vector<double> poi_nom_up        = pulls.getCol(6+5*POIpos);
-    std::vector<double> poi_nom_down      = pulls.getCol(7+5*POIpos);
-    //
-    std::vector<double> poi_up_sign       = pulls.getCol(4+5*POIpos);
-    std::vector<double> poi_down_sign     = pulls.getCol(5+5*POIpos);
-    std::vector<double> poi_nom_up_sign   = pulls.getCol(6+5*POIpos);
-    std::vector<double> poi_nom_down_sign = pulls.getCol(7+5*POIpos);
+    std::vector<double> val               = pulls->getCol(0);
+    std::vector<double> up                = pulls->getCol(1);
+    std::vector<double> down              = pulls->getCol(2);
+    std::vector<double> poi_hat           = pulls->getCol(3+5*POIpos);
+    std::vector<double> poi_up            = pulls->getCol(4+5*POIpos);
+    std::vector<double> poi_down          = pulls->getCol(5+5*POIpos);
+    std::vector<double> poi_nom_up        = pulls->getCol(6+5*POIpos);
+    std::vector<double> poi_nom_down      = pulls->getCol(7+5*POIpos);
+    
+    std::vector<double> poi_up_sign       = pulls->getCol(4+5*POIpos);
+    std::vector<double> poi_down_sign     = pulls->getCol(5+5*POIpos);
+    std::vector<double> poi_nom_up_sign   = pulls->getCol(6+5*POIpos);
+    std::vector<double> poi_nom_down_sign = pulls->getCol(7+5*POIpos);
 
-    std::vector<double> nf_val            = nfs.getCol(0);
-    std::vector<double> nf_up             = nfs.getCol(1);
-    std::vector<double> nf_down           = nfs.getCol(2);
-    std::vector<double> nf_poi_hat        = nfs.getCol(3+5*POIpos);
-    std::vector<double> nf_poi_up         = nfs.getCol(4+5*POIpos);
-    std::vector<double> nf_poi_down       = nfs.getCol(5+5*POIpos);
-    std::vector<double> nf_poi_nom_up     = nfs.getCol(6+5*POIpos);
-    std::vector<double> nf_poi_nom_down   = nfs.getCol(7+5*POIpos);
+    std::vector<double> nf_val            = nfs->getCol(0);
+    std::vector<double> nf_up             = nfs->getCol(1);
+    std::vector<double> nf_down           = nfs->getCol(2);
+    std::vector<double> nf_poi_hat        = nfs->getCol(3+5*POIpos);
+    std::vector<double> nf_poi_up         = nfs->getCol(4+5*POIpos);
+    std::vector<double> nf_poi_down       = nfs->getCol(5+5*POIpos);
+    std::vector<double> nf_poi_nom_up     = nfs->getCol(6+5*POIpos);
+    std::vector<double> nf_poi_nom_down   = nfs->getCol(7+5*POIpos);
 
-    std::vector<double> cats_val  = cats.getCol(0+3*POIpos);
-    std::vector<double> cats_up   = cats.getCol(1+3*POIpos);
-    std::vector<double> cats_down = cats.getCol(2+3*POIpos);
+    std::vector<double> cats_val          = cats->getCol(0+3*POIpos);
+    std::vector<double> cats_up           = cats->getCol(1+3*POIpos);
+    std::vector<double> cats_down         = cats->getCol(2+3*POIpos);
 
     std::cout << "Set correct values for the poi" << std::endl;
     float scale_theta = scale_factor;
@@ -255,7 +249,7 @@ void draw_pulls3(std::string mass = "125", std::string cardName = "", float scal
     std::cout << "Map of category uncertainties" << std::endl;
     std::cout << __FILE__ << " " << __LINE__ << std::endl;
     std::map<string, vector<double> > cat_uncerts;
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
+    std::cout << __FILE__ << " " << __LINE__ << "nrCats="<< nrCats<< std::endl;
     for (int i = 0; i < nrCats; i++) {
     std::cout << __FILE__ << " " << __LINE__ << std::endl;
         string index = cats_labels[i];
@@ -854,7 +848,7 @@ void draw_pulls3(std::string mass = "125", std::string cardName = "", float scal
     delete c1;
 }
 
-// before we are using draw_pulls3, now we want to do the multiple mus, so we add a shell outside draw_pulls3
+// before we are using draw_pulls_core, now we want to do the multiple mus, so we add a shell outside draw_pulls_core
 void draw_pulls(std::string mass = "125", std::string cardName = "test", float scale_factor = 1.7, std::string overlayCard="", bool postFitOrder = true) 
 {
     std::vector<std::string> parsed = parseString(cardName, ":");
@@ -869,7 +863,7 @@ void draw_pulls(std::string mass = "125", std::string cardName = "test", float s
     root2ascii( "output/test/root-files/breakdown_add" );
     std::cout << "Finished to create the ascii files" << std::endl;
 
-    // find out how many POIs
+    // find out how many POIs 
     TFile* infile = NULL;
     infile = new TFile( "output/test/root-files/breakdown_add/total.root");
     TH1D* hist = (TH1D*)infile->Get("total");
@@ -886,7 +880,7 @@ void draw_pulls(std::string mass = "125", std::string cardName = "test", float s
         std::cout << "Do the ranking plot for POI: "<< POIname << " as " << POIpos+1 << " (starting from 1) of " << POItotal << std::endl;
 
         // for each POI do the plot
-        draw_pulls3( mass, cardName, scale_factor, overlayCard, postFitOrder, POIname, POIpos, POItotal);
+        draw_pulls_core( mass, cardName, scale_factor, overlayCard, postFitOrder, POIname, POIpos, POItotal);
     }
 
     infile->Close();
