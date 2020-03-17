@@ -48,7 +48,7 @@ void Draw(RooWorkspace* ws, RooAbsReal* nll, TString suffix = "")
 void pulls()
 {
 //    const char* inFileName      = "1200GeV_WSMaker_workspace.root";
-    const char* inFileName      = "/Users/takeda/workspace/public/HepStat/data/output_combined_VH_model_500GeV.root";
+    std::string inFileName      = "./data/output_combined_VH_model_500GeV.root";
     const char* poiName         = "SigXsecOverSM";
     const char* wsName          = "combined";
     const char* modelConfigName = "ModelConfig";
@@ -68,7 +68,7 @@ void pulls()
     std::cout << "Running over workspace: " << inFileName << std::endl;
     system(("mkdir -vp output/" + folder + "/root-files/pulls").c_str());
 
-    TFile file(inFileName, "OPEN");
+    TFile file(inFileName.c_str(), "OPEN");
     RooWorkspace* ws = (RooWorkspace*)file.Get(wsName);
     if (!ws) {
         std::cout << "Workspace: " << wsName << " doesn't exist!" << std::endl;
