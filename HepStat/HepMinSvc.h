@@ -5,15 +5,24 @@ using namespace RooStats;
 class HepMinSvc
 {
     public:
-        void minuit(RooAbsReal* nll);
+        bool minuit(RooAbsReal* nll, std::string savename);
         double findSigma( RooAbsReal* nll, double nll_unconditional_fit_value, RooRealVar* poi, const double poi_best_fit, double N);
 };
 
-void HepMinSvc::minuit(RooAbsReal* nll)
+bool HepMinSvc::minuit(RooAbsReal* nll, std::string savename = "")
 {
     RooMinimizer m(*nll);
     m.setPrintLevel(-1);
     m.minimize("Minuit2", "Migrad");
+    m.minos(); //! Run Migrad before Minos
+
+    RooFitResult* res = m.save( savename.c_str(), "Fit Result");
+    if ( res->status() == 0 ) {
+        return false;
+    }
+
+    std::cout << "Likilihood estimation failed." << std::endl;
+    return false;
 }
 
 //get sigma assuming nll -2logLR is poiabolic in poi
@@ -30,14 +39,13 @@ double HepMinSvc::findSigma( RooAbsReal* nll, double nll_unconditional_fit_value
     poi->setConstant(true);
 
     std::map<double, double> guess_to_corr;
-    double damping_factor = 1.0;
+    double damping_factor     = 1.0;
     double damping_factor_pre = damping_factor;
     double val_pre = poi_guess - 10 * precision;
 
     double tmu    = 0;
     int nrDamping = 1;
     int nrItr     = 0;
-
     while ( fabs(val_pre-poi_guess) > precision ) {
         std::cout << "----------------------" << std::endl;
         std::cout << "Starting iteration " << nrItr << " of " << nll->GetName() << " and poiameter " << poi->GetName() << std::endl;

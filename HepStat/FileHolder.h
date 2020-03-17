@@ -84,13 +84,11 @@ bool FileHolder::readInFile( std::string name )
         double data;
         for ( int col = 0; stream >> data; col++ ) { 
             if ( col == 0 ) continue;
-            std::cout << data << std::endl;
+            std::cout << "\t" << data << std::endl;
             tmp.push_back(data);
         }
         m_rates.push_back(tmp);
     }
-    std::cout << "Done" << std::endl;
-    std::cout << m_massPoints.size() << std::endl;
     input_file.close();
     return true;
 }
