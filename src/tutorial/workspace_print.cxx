@@ -1,6 +1,6 @@
 
-using namespace RooFit; 
-using namespace RooStats; 
+using namespace RooFit;
+using namespace RooStats;
 
 void workspace_print()
 {
@@ -25,30 +25,26 @@ void workspace_print()
 
     w.Print();
     w.var("sigma")->Print();
-    
-    return;
 
     RooAbsReal* nll = w.pdf("model")->createNLL(data);
-    w.pdf("model")->fitTo(data,Minos(*w.set("poi")),Save(),Hesse(false));
+    RooAbsReal* pll = nll->createProfile(*w.set("poi"));
+
+    std::cout << ">>>>> RooMinimizer called" << std::endl;
+    RooMinimizer min(*nll);
+    min.minimize("Minuit2", "Migrad");
+    min.minos();
     std::cout << "@@@@ " << w.var("sigma")->getErrorHi() << " " << w.var("sigma")->getErrorLo() << std::endl;
 
-    RooAbsReal* pll = nll->createProfile(*w.set("poi"));
-    w.pdf("model")->fitTo(data,Minos(*w.set("poi")),Save(),Hesse(false));
-    std::cout << "@@@@ " << w.var("sigma")->getErrorHi() << " " << w.var("sigma")->getErrorLo() << std::endl;
-    
+    // migrad        : 2.64695 -2.64695
+    // hesse         : run Migrad before Hesse!
+    // minos         : run Migrad before Minos!
+    // migrad->hesse : 2.64691 -2.64691
+    // migrad->minos :  2.83916 -2.51612
+    // migrad->hesse->minos : 2.83916 -2.51612
+
     RooPlot* frame = w.var("sigma")->frame();
     nll->plotOn(frame, ShiftToZero()); //the ShiftToZero option puts the minimum at 0 on the y-axis
-    frame->Draw();
     pll->plotOn(frame,LineColor(kRed));
     frame->Draw();
-    
-    RooFitResult* res = w.pdf("model")->fitTo(data,Minos(*w.set("poi")),Save(),Hesse(false));
-    
-
-    if(res->status()==0) {
-        w.var("sigma")->Print();
-    } else {
-        cout << "Likelihood maximization failed" << endl;
-    }
-
+    return;
 }
