@@ -21,7 +21,7 @@
 #include "RooPoisson.h"
 #include "RooGaussian.h"
 
-#include "HepMinSvc.h"
+#include "../HepStat/HepMinSvc.h"
 
 using namespace RooFit;
 using namespace RooStats;
@@ -47,15 +47,14 @@ void Draw(RooWorkspace* ws, RooAbsReal* nll, TString suffix = "")
 
 void pulls()
 {
-    const char* inFileName      = "1200GeV_WSMaker_workspace.root";
+//    const char* inFileName      = "1200GeV_WSMaker_workspace.root";
+    const char* inFileName      = "/Users/takeda/workspace/public/HepStat/data/output_combined_VH_model_500GeV.root";
     const char* poiName         = "SigXsecOverSM";
     const char* wsName          = "combined";
     const char* modelConfigName = "ModelConfig";
     const char* dataName        = "obsData";
-    std::string folder          = "test";
+    std::string folder          = "LQ3Up500GeV";
     double precision = 0.005;
-    int nJobs = 1;
-    int iJob = 0;
 
     /* Minimize interface */
     HepMinSvc hepmin;
@@ -150,21 +149,17 @@ void pulls()
     }
     
     RooNLLVar* nll = (RooNLLVar*)mc->GetPdf()->createNLL(*data, Constrain(*nuis), GlobalObservables(*globs), Offset(1), Optimize(2));
-    hepmin.minuit(nll); // RooMinuit(*nll).migrad(); // RooMinuit(*nll).migrad(); // Fits::minimize(nll);
-    std::cout << "Finished to minimize the NLL." << std::endl; 
-
-    if ( pois[0]->getVal() < 0 ) {
-        std::cout << "@@@ ERROR @@@ Negative SigXsecOverSM : " << std::endl;
+    if ( hepmin.minuit(nll, "GlobalFit") ) {
+        std::cout << "Finished to minimize the NLL." << std::endl; 
         std::cout << "\tNLL = " << nll->getVal() << std::endl;
         std::cout << "\tmu  = " << pois[0]->getVal() << std::endl;
+    } else {
         return;
     }
 
     // it is good that first fit has decent estimate of the errors, so strategy 1 is good
     // for subsequent fits, we don't care, so go faster
-    ROOT::Math::MinimizerOptions::SetDefaultStrategy(0);
     double nll_hat = nll->getVal();
-    std::cout << "NLL getVal() : " << nll->getVal() << std::endl;
     std::vector<double> pois_hat;
     for (unsigned int i = 0; i < pois.size(); i++) {
         std::cout << "Unconditional fit result : " << pois[i]->GetName() << " " << pois[i]->getVal() << std::endl;
@@ -187,50 +182,46 @@ void pulls()
 
     std::cout << "Made unconditional snapshot" << std::endl;
     std::cout << "----------------------------------BEGINNING FOR POI RANKING--------------------------------------------"<< std::endl;
+    return;
 
     for ( unsigned int iPoi = 0; iPoi < pois.size(); iPoi++ ) {
 
-        ws->loadSnapshot("tmp_snapshot"); 
-        double poi_errup   = hepmin.findSigma(nll, nll_hat, pois.at(iPoi), pois_hat[iPoi], +1); 
-
-        ws->loadSnapshot("tmp_snapshot"); 
-        double poi_errdown = hepmin.findSigma(nll, nll_hat, pois.at(iPoi), pois_hat[iPoi], -1);
+        double poi_errup   = pois.at(iPoi)->getErrorHi();
+        double poi_errdown = pois.at(iPoi)->getErrorLo();
         std::cout << __FILE__ << " " << __LINE__ << " " << pois.at(iPoi)->GetName() << " = " << pois_hat[iPoi] << " +" << fabs(poi_errup) << " /  -" << fabs(poi_errdown) << std::endl;
-
-        // fix theta at the MLE value +/- postfit uncertainty and minimize again to estimate the change in the POI
-        ws->loadSnapshot("tmp_snapshot");
-        pois.at(iPoi)->setVal(pois_hat[iPoi]+fabs(poi_errup));
-        pois.at(iPoi)->setConstant(1);
-        hepmin.minuit(nll); // RooMinuit(*nll).migrad(); // Fits::minimize(nll);
-        std::vector<double> pois_up;
-        for (unsigned int i = 0; i < pois.size(); i++ ) {
-            if (iPoi==i)  pois_up.push_back(pois_hat[iPoi]);
-            else          pois_up.push_back(pois[i]->getVal());
-        }
-
-        ws->loadSnapshot("tmp_snapshot");
-        pois.at(iPoi)->setVal(pois_hat[iPoi]-fabs(poi_errdown));
-        pois.at(iPoi)->setConstant(1);
-        hepmin.minuit(nll); // RooMinuit(*nll).migrad(); // Fits::minimize(nll);
-        std::vector<double> pois_down;
-        for (unsigned int i = 0; i < pois.size(); i++) {
-            if (iPoi==i)  pois_down.push_back(pois_hat[iPoi]);
-            else          pois_down.push_back(pois[i]->getVal());
-        }
 
         /* fix theta at the MLE value +/- postfit uncertainty and minimize again to estimate the change in the POI */
         ws->loadSnapshot("tmp_snapshot");
-        std::vector<double> pois_nom_up, pois_nom_down;
-        for (unsigned int i = 0; i < pois.size(); i++) {
+        pois.at(iPoi)->setVal( pois_hat[iPoi] + poi_errup );
+        pois.at(iPoi)->setConstant(1);
+        hepmin.minuit(nll, "PoiUpFit"); 
+        std::vector<double> pois_up;
+        std::vector<double> pois_nom_up;
+        for (unsigned int i = 0; i < pois.size(); i++ ) {
+            if (iPoi==i)  pois_up.push_back(pois_hat[iPoi]);
+            else          pois_up.push_back(pois[i]->getVal());
             pois_nom_up  .push_back(pois[i]->getVal());
+        }
+
+        ws->loadSnapshot("tmp_snapshot");
+        pois.at(iPoi)->setVal( pois_hat[iPoi] + poi_errdown);
+        pois.at(iPoi)->setConstant(1);
+        hepmin.minuit(nll, "PoiDownFit"); 
+        std::vector<double> pois_down;
+        std::vector<double> pois_nom_down;
+        for (unsigned int i = 0; i < pois.size(); i++) {
+            if (iPoi==i)  pois_down.push_back(pois_hat[iPoi]);
+            else          pois_down.push_back(pois[i]->getVal());
             pois_nom_down.push_back(pois[i]->getVal());
         }
 
         /* Output file in ROOT */
-        TString fileName = "output/" + folder + "/root-files/pulls/" + pois.at(iPoi)->GetName() + ".root";
+        TString fileName = "data/output/" + folder + "/root-files/pulls/" + pois.at(iPoi)->GetName() + ".root";
         TFile fout(fileName, "RECREATE");
 
         TH1D h_out(pois.at(iPoi)->GetName(), pois.at(iPoi)->GetName(), 3 + 5 * pois.size(), 0, 3 + 5 * pois.size());
+
+        std::cout << pois_hat[iPoi] << " " << fabs(poi_errup) << " " << fabs(poi_errdown) << std::endl;
 
         h_out.SetBinContent(1, pois_hat[iPoi]);
         h_out.SetBinContent(2, fabs(poi_errup));
@@ -261,10 +252,10 @@ void pulls()
         fout.Close();
     }
     std::cout << "---------------------------------------------------------END FOR POI RANKING-----------------------------------------------" << std::endl;
+    return;
 
     std::cout << "Nuisance parameter loop : " << nuisance_params.size() << std::endl;
-//    for (int in = 0; in < nuisance_params.size(); in++) {
-    for (int in = 0; in < 1; in++) {
+    for (int in = 0; in < nuisance_params.size(); in++) {
 
         ws->loadSnapshot("tmp_snapshot");
 
@@ -318,12 +309,15 @@ void pulls()
         double nuip_errdown;
         if( np_type != NPType::GammaProtection ){
             ws->loadSnapshot("tmp_snapshot2");
-            nuip_errup = hepmin.findSigma(nll, nll_hat, nuisance_parameter, nuip_hat, +1);
+            // nuip_errup = hepmin.findSigma(nll, nll_hat, nuisance_parameter, nuip_hat, +1);
+            nuip_errup = nuisance_parameter->getErrorHi();
             ws->loadSnapshot("tmp_snapshot2");
-            nuip_errdown = hepmin.findSigma(nll, nll_hat, nuisance_parameter, nuip_hat, -1);
+            //nuip_errdown = hepmin.findSigma(nll, nll_hat, nuisance_parameter, nuip_hat, -1);
+            nuip_errdown = nuisance_parameter->getErrorLo();
         } else {
             ws->loadSnapshot("tmp_snapshot2");
-            nuip_errup = hepmin.findSigma(nll, nll_hat, nuisance_parameter, nuip_hat, +1);
+            // nuip_errup = hepmin.findSigma(nll, nll_hat, nuisance_parameter, nuip_hat, +1);
+             nuip_errup = nuisance_parameter->getErrorHi();
             std::cout << "This is a gamma parameter for protection. No need to get -1 sigma." << std::endl;
             nuip_errdown = 0.;
         }
