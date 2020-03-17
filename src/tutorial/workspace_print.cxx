@@ -33,7 +33,16 @@ void workspace_print()
     RooMinimizer min(*nll);
     min.minimize("Minuit2", "Migrad");
     min.minos();
-    std::cout << "@@@@ " << w.var("sigma")->getErrorHi() << " " << w.var("sigma")->getErrorLo() << std::endl;
+
+    RooFitResult* res = min.save("myResult","My Result");
+    if ( res->status() == 0 ) {
+        std::cout << "@@@@ " << w.var("sigma")->getErrorHi() << " " << w.var("sigma")->getErrorLo() << std::endl;
+        w.Print();
+    }
+    else {
+        std::cout << "Likelihood estimation failed." << std::endl;
+        return;
+    }
 
     // migrad        : 2.64695 -2.64695
     // hesse         : run Migrad before Hesse!
