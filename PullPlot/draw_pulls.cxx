@@ -49,7 +49,6 @@ bool useRelativeImpact     = false;  // switch to delta muhat / delta muhat tot 
 bool scaleGammas           = false; // switch to scale gamma nuisance parameters to 1/MCStat.error -1
 int useBreakdown           = 0;     // 0 = add, 1 = sub
 //double scale_poi           = 1.25;  // zoom the impact axis
-//double scale_theta         = 2.20;  // zoom the pull axis
 bool isVH                  = true; // switch only when using the flag removeSigUnc. True is VH, false is VZ 
 bool removeSigUnc          = false; // remove signal uncertainties from the plot
 int showTopParameters      = 15; // -1 to show all parameters
@@ -72,7 +71,15 @@ TString translateNPname(TString internalName, bool isMVA);
 TString translateGammaStatName(TString internalName);
 bool isSignalNP(string NPname);
 
-void draw_pulls_core(std::string mass = "125", std::string cardName = "", float scale_factor = 1.7,  std::string overlayCard="", bool postFitOrder = true, std::string POIname = "SigXsecOverSM", int POIpos = 0, int POItotal = 1) 
+void draw_pulls_core(
+        std::string mass = "125", 
+        std::string cardName = "", 
+        float scale_factor = 1.7,  
+        std::string overlayCard="", 
+        bool postFitOrder = true, 
+        std::string POIname = "SigXsecOverSM", 
+        int POIpos = 0, 
+        int POItotal = 1) 
 {
     gStyle->SetHatchesLineWidth(hatch_width);
 
@@ -116,7 +123,7 @@ void draw_pulls_core(std::string mass = "125", std::string cardName = "", float 
     std::string file_pulls_id          = "output/" + cardName + "/ascii/pulls_id.txt";
     std::string file_pulls_nf_id       = "output/" + cardName + "/ascii/pulls_nf_id.txt";
     std::string file_breakdown_add_id  = "output/" + cardName + "/ascii/breakdown_add_id.txt";
-    
+
     FileHolder* pulls = new FileHolder( file_pulls         , 3+POItotal*5);
     FileHolder* nfs   = new FileHolder( file_pulls_nf      , 3+POItotal*5);
     FileHolder* cats  = new FileHolder( file_breakdown_add , POItotal*3  );
@@ -125,7 +132,8 @@ void draw_pulls_core(std::string mass = "125", std::string cardName = "", float 
     int nrNuis = pulls->getMassPointsSize();
     int nrNFs  = nfs  ->getMassPointsSize();
     int nrCats = cats ->getMassPointsSize();
-    std::cout << "nrCats=" << nrCats << std::endl;
+    std::cout << "# nuisance parameters = " << nrNuis << std::endl;
+    std::cout << "# nrCats = " << nrCats << std::endl;
 
     std::vector<double> points_nuis = pulls->getMassPoints();
     std::vector<double> points_nf   = nfs  ->getMassPoints();
@@ -142,7 +150,7 @@ void draw_pulls_core(std::string mass = "125", std::string cardName = "", float 
     std::vector<double> poi_down          = pulls->getCol(5+5*POIpos);
     std::vector<double> poi_nom_up        = pulls->getCol(6+5*POIpos);
     std::vector<double> poi_nom_down      = pulls->getCol(7+5*POIpos);
-    
+
     std::vector<double> poi_up_sign       = pulls->getCol(4+5*POIpos);
     std::vector<double> poi_down_sign     = pulls->getCol(5+5*POIpos);
     std::vector<double> poi_nom_up_sign   = pulls->getCol(6+5*POIpos);
@@ -185,10 +193,10 @@ void draw_pulls_core(std::string mass = "125", std::string cardName = "", float 
             poi_nom_up_sign[i]   = fabs(poi_nom_up[i]);
             poi_nom_down_sign[i] = 0.;
         }
-        
+
         if ( poi_up[i]     < 0 ) std::swap(poi_up[i]    , poi_down[i]);
         if ( poi_nom_up[i] < 0 ) std::swap(poi_nom_up[i], poi_nom_down[i]);
-        
+
         poi_up[i]       = fabs(poi_up[i]);
         poi_down[i]     = fabs(poi_down[i]);
         poi_nom_up[i]   = fabs(poi_nom_up[i]);
@@ -219,13 +227,13 @@ void draw_pulls_core(std::string mass = "125", std::string cardName = "", float 
     int nf_nlines   = 0;
     int cats_nlines = 0;
 
-    std::ifstream idFile ( file_pulls_id);
+    std::ifstream idFile ( file_pulls_id );
     std::ifstream idFile2( file_pulls_nf_id );
     std::ifstream idFile3( file_breakdown_add_id ); 
-    
+
     while (1) {
         if (!idFile.good() || nlines > nrNuis-1) break;
-        string label;
+        std::string label;
         idFile >> label;
         labels.push_back(label);
         cout << "added: " << label << endl;
@@ -247,47 +255,31 @@ void draw_pulls_core(std::string mass = "125", std::string cardName = "", float 
     }
 
     std::cout << "Map of category uncertainties" << std::endl;
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     std::map<string, vector<double> > cat_uncerts;
-    std::cout << __FILE__ << " " << __LINE__ << "nrCats="<< nrCats<< std::endl;
     for (int i = 0; i < nrCats; i++) {
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
         string index = cats_labels[i];
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
         cout << i << " " << index << " " << cats_val[i] << " " << cats_up[i] << " " << cats_down[i] << endl;
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
         cat_uncerts[index].push_back(cats_val[i]);
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
         cat_uncerts[index].push_back(cats_up[i]);
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
         cat_uncerts[index].push_back(cats_down[i]);
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     }
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
 
     for( auto a:cat_uncerts )
         std::cout<<a.first<<" "<<a.second.size()<< std::endl;
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
 
     double sigma_tot_hi  = cat_uncerts["total"][1];
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     double sigma_tot_lo  = cat_uncerts["total"][2];
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
 
     double sigma_stat_hi = 0.;
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     double sigma_stat_lo = 0.;
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     double sigma_syst_hi = 0.;
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     double sigma_syst_lo = 0.;
-    std::cout << __FILE__ << " " << __LINE__ << std::endl;
     // TODO: can probably drop this
 
     std::cout << "Dump everything in maps" << std::endl;
     std::map< std::string, std::vector<double> > nuis_map;
     for ( int i = 0; i < nrNuis; i++) {
-        string index = labels[i];      
+        std::string index = labels[i];      
         nuis_map[index].push_back(val[i]);
         nuis_map[index].push_back(up[i]);
         nuis_map[index].push_back(down[i]);
@@ -665,7 +657,11 @@ void draw_pulls_core(std::string mass = "125", std::string cardName = "", float 
 
     // axis for the nuisance parameter pull
     TGaxis *axis_theta = new TGaxis(border_lo, -offset, border_hi, -offset, (-sigma_tot_lo / max_poi) / scale_theta, (sigma_tot_hi / max_poi) / scale_theta, 510, "+R");
-    cout <<" Bottom range from "<< (-sigma_tot_lo / max_poi) / scale_theta <<" to "<< (sigma_tot_hi / max_poi) / scale_theta << endl;
+    std::cout << max_poi      << std::endl;
+    std::cout << sigma_tot_hi << std::endl;
+    std::cout << sigma_tot_lo << std::endl;
+    std::cout << scale_theta  << std::endl;
+    std::cout <<" Bottom range from "<< (-sigma_tot_lo / max_poi) / scale_theta <<" to "<< (sigma_tot_hi / max_poi) / scale_theta << std::endl;
     axis_theta->ImportAxisAttributes(h->GetXaxis());
     axis_theta->SetName("axis_theta");
     axis_theta->SetTitle("");
@@ -837,13 +833,14 @@ void draw_pulls_core(std::string mass = "125", std::string cardName = "", float 
 
     t2.DrawLatex(channelPosX-0.020, channelPosY-0.075, ("m_{A}="+mass+" GeV").c_str());
 
-    std::stringstream saveName;
-    saveName << "output/" << cardName << "/pulls_" << POIname <<"_";
-    std::cout << saveName.str() << std::endl;
-    if (!m_postFitOrder) saveName << "prefit_";
-    saveName << mass;
+//    std::stringstream saveName;
+//    saveName << "output/" << cardName << "/pulls_" << POIname <<"_";
+    std::string saveName = "output/" + cardName + "/pulls_" + POIname + "_";
+    if (!m_postFitOrder) saveName += "prefit_";
+    saveName += mass;
+    std::cout << saveName << std::endl;
     c1->Draw();
-    c1->SaveAs( Form("pulls_%s.pdf", POIname.c_str()) );
+    c1->SaveAs( Form("%s.pdf", saveName.c_str()) ) ;
     c1->Closed();
     delete c1;
 }
