@@ -1,17 +1,14 @@
 # HighEnergyPhysics Statistics interface
 ## How to compute the cross sction limit
-(1) Tune the hisgorms binning
+1. Tune the hisgorms binning
 ```
 root -l -b -q src/rebin.cxx
 ```
 
-## Create RooWorkspace
+2. Create RooWorkspace
 ```
 hist2workspace -standard_form /path/to/driver.xml
 ```
-
-
-# HistFactory
 
 # Other tips
 ## Install pyhf
